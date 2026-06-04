@@ -1,0 +1,110 @@
+
++ New Order
+📋 New Order
+📊 My Orders
+📅 Calendar
+💬 Replies
+⚙️ Settings
+Client Info
+CLIENT NAME
+
+PHONE / CONTACT
+
+EVENT DATE
+PICKUP TIME
+OCCASION / THEME
+
+Order Status
+⏳ Pending
+✅ Confirmed
+❌ Cancelled
+Order Type
+🎂 Cake
+🍭 Desserts
+🎂🍭 Both
+Inspo / Reference Photos
+Cake Size
+4 inch
+6 inch
+8 inch
+10 inch
+Bento Set
+Sheet Cake
+Tiered
+Other
+TIER / SIZE NOTES
+
+APPROX. SERVINGS
+
+NUMBER OF LAYERS
+
+2 Layers
+
+3 Layers
+
+4 Layers
+Shape
+⚪
+Round
+🤍
+Heart
+⬜
+Square
+▭
+Rectangle
+⭐
+Star
+🪦
+Coffin
+#️⃣
+Number
+✏️
+Custom
+Cake Flavor
+Vanilla
+Chocolate
+Funfetti
+Red Velvet
+Carrot
+DIETARY REQUIREMENTS
+🌾 Gluten Free
+🥛 Dairy Free
+🌱 Vegan
+OTHER / CUSTOM FLAVOR
+
+Filling
+Vanilla Cream
+Chocolate Cream
+Cream Cheese Cream
+Fresh Strawberries + Vanilla Cream
+🫙 Nutella
+Dulce de Leche + Biscoff Cookies
+Pistachio Cream + Raspberry Jam
+Design Notes
+MESSAGE ON CAKE
+
+COLOR PALETTE
+
+DESIGN DETAILS
+Cake Add-Ons
+🎀 Bow
+✨ Glitter
+🎂 Cake Topper
+🖼 Edible Image
+ADD-ON NOTES
+
+Pricing
+Total
+
+Balance Due
+$—
+ZELLE CONFIRMATION / NOTE
+
+🔒 My Notes
+Clear
+💾 Save
+📨 Send Confirmation
+⏰ Baking Schedule
+📄 Save as PDF
+🖨️ Print
+
