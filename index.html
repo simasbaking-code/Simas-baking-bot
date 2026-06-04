@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 <title>Sima's Baking — Order Form</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getFirestore, collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
@@ -937,147 +937,17 @@ function newOrder(){
 }
 
 function saveAsPDF(){
-  try {
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-
-    const nm   = document.getElementById('name').value || 'Order';
-    const dt   = document.getElementById('edate').value || '';
-    const time = document.getElementById('ptime').value || '';
-    const phone= document.getElementById('phone').value || '';
-    const occ  = document.getElementById('occasion').value || '';
-    const size = [...document.querySelectorAll('input[name="size"]:checked')].map(i=>i.value).join(', ');
-    const layers = document.querySelector('input[name="layers"]:checked')?.value || '';
-    const sizeNotes = document.getElementById('sizenotes').value || '';
-    const shape  = document.querySelector('.shp.sel')?.dataset.shape || '';
-    const flavor = [...document.querySelectorAll('input[name="flavor"]:checked')].map(i=>i.value).join(', ');
-    const flavorOther = document.getElementById('flavorOther').value || '';
-    const dietary = [...document.querySelectorAll('input[name="dietary"]:checked')].map(i=>i.value).join(', ');
-    const filling = [...document.querySelectorAll('input[name="filling"]:checked')].map(i=>i.value).join(', ');
-    const chocBrand = [...document.querySelectorAll('input[name="chocbrand"]:checked')].map(i=>i.value).join(', ');
-    const cakeMsg = document.getElementById('cakeMsg').value || '';
-    const colors  = document.getElementById('colors').value || '';
-    const design  = document.getElementById('design').value || '';
-    const addons  = [...document.querySelectorAll('input[name="cakeaddon"]:checked')].map(i=>i.value).join(', ');
-    const addonNotes = document.getElementById('cakeaddonNotes').value || '';
-    const total   = document.getElementById('pTotal').value || '';
-    const zelle   = document.getElementById('zelleNote').value || '';
-    const notes   = document.getElementById('notes').value || '';
-    const status  = currentStatus || '';
-
-    const margin = 18;
-    let y = 22;
-    const pageW = 210;
-    const maxW  = pageW - margin * 2;
-
-    // Header
-    doc.setFillColor(176, 133, 112);
-    doc.rect(0, 0, 210, 14, 'F');
-    doc.setTextColor(255,255,255);
-    doc.setFontSize(11);
-    doc.setFont('helvetica','bold');
-    doc.text("Sima's Baking — Order Summary", margin, 9.5);
-    doc.setFontSize(9);
-    doc.setFont('helvetica','normal');
-    doc.text(new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}), pageW - margin, 9.5, {align:'right'});
-
-    y = 26;
-
-    const section = (title) => {
-      doc.setFillColor(250, 243, 238);
-      doc.rect(margin, y - 4, maxW, 8, 'F');
-      doc.setTextColor(176,133,112);
-      doc.setFontSize(9);
-      doc.setFont('helvetica','bold');
-      doc.text(title.toUpperCase(), margin + 2, y + 0.5);
-      y += 8;
-    };
-
-    const row = (label, value) => {
-      if(!value) return;
-      doc.setTextColor(154, 112, 96);
-      doc.setFontSize(8.5);
-      doc.setFont('helvetica','bold');
-      doc.text(label + ':', margin + 2, y);
-      doc.setTextColor(61, 43, 31);
-      doc.setFont('helvetica','normal');
-      const lines = doc.splitTextToSize(value, maxW - 45);
-      doc.text(lines, margin + 42, y);
-      y += lines.length * 5.5;
-      if(y > 270){ doc.addPage(); y = 20; }
-    };
-
-    // Client Info
-    section('Client Info');
-    row('Name', nm);
-    row('Phone', phone);
-    row('Event Date', dt);
-    row('Pickup Time', time);
-    row('Occasion', occ);
-    if(status){ row('Status', status.charAt(0).toUpperCase()+status.slice(1)); }
-    y += 3;
-
-    // Cake Details
-    section('Cake Details');
-    row('Size', size + (layers ? ' · ' + layers + ' layers' : '') + (sizeNotes ? ' (' + sizeNotes + ')' : ''));
-    row('Shape', shape);
-    row('Flavor', flavor + (flavorOther ? ' / ' + flavorOther : '') + (dietary ? ' · ' + dietary : ''));
-    row('Filling', filling + (chocBrand ? ' (' + chocBrand + ')' : ''));
-    row('Message', cakeMsg ? '"' + cakeMsg + '"' : '');
-    row('Colors', colors);
-    row('Design', design);
-    row('Add-Ons', addons + (addonNotes ? ' — ' + addonNotes : ''));
-    y += 3;
-
-    // Payment
-    section('Payment');
-    row('Total', total);
-    row('Zelle Ref', zelle || (total ? 'Not yet received' : ''));
-    y += 3;
-
-    // Notes
-    if(notes){
-      section('My Notes');
-      row('Notes', notes);
-    }
-
-    // Footer
-    doc.setDrawColor(232,213,196);
-    doc.setLineWidth(0.4);
-    doc.line(margin, 285, pageW - margin, 285);
-    doc.setTextColor(154,112,96);
-    doc.setFontSize(8);
-    doc.setFont('helvetica','normal');
-    doc.text("simasbaking.com  ·  Sima's Baking", pageW / 2, 290, {align:'center'});
-
-    const filename = (nm + (dt ? '_' + dt : '') + '.pdf').replace(/\s+/g,'_');
-    doc.save(filename);
-    toast('📄 PDF saved!');
-  } catch(e) {
-    console.error('PDF error:', e);
-    toast('⚠️ PDF failed — try printing instead');
-    window.print();
-  }
-}
+  const nm=document.getElementById('name').value||'Order';
+  const dt=document.getElementById('edate').value||'';
+  // Set the document title to the client name + date so PDF is named correctly
+  const prev=document.title;
+  document.title=nm+(dt?' - '+dt:'');
+  window.print();
+  setTimeout(()=>document.title=prev,1000);
 }
 // ── FIREBASE HELPERS ─────────────────────────────────────────────────────────
-// Wait for Firebase to be ready and cache to be populated
-function waitForCache(timeout=5000){
-  return new Promise(resolve=>{
-    if(window._ordersCache){ resolve(); return; }
-    const start = Date.now();
-    const check = setInterval(()=>{
-      if(window._ordersCache || Date.now()-start > timeout){
-        clearInterval(check); resolve();
-      }
-    }, 100);
-  });
-}
-
 // Get all orders - from cache (populated by real-time listener) or fallback
 async function getAllOrders(){
-  // Wait up to 5s for the real-time listener to populate cache
-  await waitForCache();
   if(window._ordersCache) return window._ordersCache;
   // Fallback: fetch from Firestore directly
   if(window._fbGetDocs){
@@ -1738,6 +1608,7 @@ async function renderCalendar(){
       }
     }catch(e){}
   });
+  console.log('ordersByDate:', JSON.stringify(ordersByDate));
 
   const today = new Date();
   const firstDay = new Date(calYear, calMonth, 1).getDay();
@@ -1758,6 +1629,7 @@ async function renderCalendar(){
   // Days of current month
   for(let day = 1; day <= daysInMonth; day++){
     const dateStr = calYear + '-' + String(calMonth+1).padStart(2,'0') + '-' + String(day).padStart(2,'0');
+    if(day===27) console.log('Looking for date:', dateStr, 'Found:', ordersByDate[dateStr]);
     const isToday = today.getFullYear()===calYear && today.getMonth()===calMonth && today.getDate()===day;
     const orders = ordersByDate[dateStr] || [];
 
@@ -1985,4 +1857,3 @@ function showCalDay(dateStr, orders){
 </div>
 </body>
 </html>
-
