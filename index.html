@@ -766,7 +766,11 @@ function sendConf(method){
   } else if(method==='email'){
     const emailTo = document.getElementById('phone').value||'';
     const subject = encodeURIComponent('Your Order Confirmation - Simas Baking');
-    window.open('mailto:' + emailTo + '?subject=' + subject + '&body=' + encoded, '_blank');
+    // Try Gmail app first (works on iPhone), fall back to mailto
+    const gmailApp = 'googlegmail://co?to=' + emailTo + '&subject=' + subject + '&body=' + encoded;
+    const fallback = 'mailto:' + emailTo + '?subject=' + subject + '&body=' + encoded;
+    window.location.href = gmailApp;
+    setTimeout(()=>{ window.location.href = fallback; }, 600);
     } else if(method==='sms'){
     window.open('sms:' + (phone||'') + '?body=' + encoded, '_blank');
   }
