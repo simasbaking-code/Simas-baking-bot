@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -764,26 +765,12 @@ function sendConf(method){
     const waNum = num.length === 10 ? '1' + num : num;
     window.open('https://wa.me/' + waNum + '?text=' + encoded, '_blank');
   } else if(method==='email'){
-    // Copy message to clipboard then open Gmail
-    navigator.clipboard.writeText(msg).then(()=>{
-      toast('📋 Message copied! Opening Gmail...');
-      setTimeout(()=>{
-        const emailTo = document.getElementById('phone').value||'';
-        const subject = encodeURIComponent('Your Order Confirmation - Simas Baking');
-        window.open('https://mail.google.com/mail/?view=cm&fs=1&to=' + encodeURIComponent(emailTo) + '&su=' + subject, '_blank');
-      }, 800);
-    }).catch(()=>{
-      // Fallback if clipboard fails
-      const ta=document.createElement('textarea');
-      ta.value=msg; document.body.appendChild(ta); ta.select();
-      document.execCommand('copy'); document.body.removeChild(ta);
-      toast('📋 Message copied! Opening Gmail...');
-      setTimeout(()=>{
-        const emailTo = document.getElementById('phone').value||'';
-        const subject = encodeURIComponent('Your Order Confirmation - Simas Baking');
-        window.open('https://mail.google.com/mail/?view=cm&fs=1&to=' + encodeURIComponent(emailTo) + '&su=' + subject, '_blank');
-      }, 800);
-    });
+    const emailTo = document.getElementById('phone').value||'';
+    const subject = encodeURIComponent('Your Order Confirmation - Simas Baking');
+    const gmailUrl = 'https://mail.google.com/mail/?view=cm&fs=1&to=' + encodeURIComponent(emailTo) + '&su=' + subject;
+    document.getElementById('emailHelperText').value = msg;
+    document.getElementById('emailHelperGmail').href = gmailUrl;
+    document.getElementById('emailHelperModal').classList.add('open');
     } else if(method==='sms'){
     window.open('sms:' + (phone||'') + '?body=' + encoded, '_blank');
   }
@@ -1879,6 +1866,27 @@ function showCalDay(dateStr, orders){
       <button class="modal-close" onclick="document.getElementById('clientModal').classList.remove('open')">✕</button>
     </div>
     <div class="modal-body" id="clientModalBody"></div>
+  </div>
+</div>
+<!-- EMAIL HELPER MODAL -->
+<div class="modal-overlay" id="emailHelperModal">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-title">✉️ Send via Email</div>
+      <button class="modal-close" onclick="document.getElementById('emailHelperModal').classList.remove('open')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:13px;color:var(--mid);margin-bottom:12px;line-height:1.8;">
+        1️⃣ Tap <strong style="color:var(--dark);">Copy Message</strong><br>
+        2️⃣ Tap <strong style="color:var(--dark);">Open Gmail</strong><br>
+        3️⃣ Press & hold in body → <strong style="color:var(--dark);">Paste</strong> → Send!
+      </div>
+      <textarea id="emailHelperText" style="width:100%;min-height:150px;background:var(--bg);border:1.5px solid var(--border);border-radius:12px;padding:14px;font-family:'Jost',sans-serif;font-size:13px;color:var(--dark);resize:none;" readonly></textarea>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-top:14px;">
+        <button onclick="const ta=document.getElementById('emailHelperText');ta.select();ta.setSelectionRange(0,99999);if(navigator.clipboard){navigator.clipboard.writeText(ta.value).then(()=>toast('📋 Copied! Now open Gmail')).catch(()=>{document.execCommand('copy');toast('📋 Copied!');});}else{document.execCommand('copy');toast('📋 Copied!');}" style="background:var(--tan);color:#fff;border:none;border-radius:14px;padding:14px;font-family:'Jost',sans-serif;font-size:15px;font-weight:500;cursor:pointer;">📋 Step 1 — Copy Message</button>
+        <a id="emailHelperGmail" href="#" target="_blank" onclick="document.getElementById('emailHelperModal').classList.remove('open')" style="background:#4a90d9;color:#fff;border-radius:14px;padding:14px;font-family:'Jost',sans-serif;font-size:15px;font-weight:500;text-decoration:none;text-align:center;display:block;">✉️ Step 2 — Open Gmail</a>
+      </div>
+    </div>
   </div>
 </div>
 </body>
