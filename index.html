@@ -765,11 +765,7 @@ function sendConf(method){
     const waNum = num.length === 10 ? '1' + num : num;
     window.open('https://wa.me/' + waNum + '?text=' + encoded, '_blank');
   } else if(method==='email'){
-    const emailTo = document.getElementById('phone').value||'';
-    const subject = encodeURIComponent('Your Order Confirmation - Simas Baking');
-    const gmailUrl = 'https://mail.google.com/mail/?view=cm&fs=1&to=' + encodeURIComponent(emailTo) + '&su=' + subject;
     document.getElementById('emailHelperText').value = msg;
-    document.getElementById('emailHelperGmail').href = gmailUrl;
     document.getElementById('emailHelperModal').classList.add('open');
     } else if(method==='sms'){
     window.open('sms:' + (phone||'') + '?body=' + encoded, '_blank');
