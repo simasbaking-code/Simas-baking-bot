@@ -31,6 +31,8 @@
   window._fbDeleteDoc = (id) => deleteDoc(doc(db, 'orders', id));
   window._fbOnSnapshot = (cb) => onSnapshot(query(ordersCol, orderBy('savedAt','desc')), cb);
   window._fbReady = true;
+  window._fbSaveSettings = (data) => setDoc(doc(db, 'settings', 'main'), data);
+  window._fbGetSettings  = ()     => getDoc(doc(db, 'settings', 'main'));
 
   // Listen for real-time updates and refresh dashboard/calendar if open
   onSnapshot(query(ordersCol, orderBy('savedAt','desc')), (snapshot) => {
@@ -572,31 +574,37 @@ function saveSettings(){
     const emoji=row.querySelector('.sched-emoji').value||'📌';
     if(label) steps.push({label,days,emoji});
   });
-  localStorage.setItem('sb_settings', JSON.stringify({
+  const settingsData = {
     bizName:  document.getElementById('settingBizName').value,
     email:    document.getElementById('settingEmail').value,
     whatsapp: document.getElementById('settingWhatsApp').value,
     website:  document.getElementById('settingWebsite').value,
     closing:  document.getElementById('settingClosing').value,
     scheduleSteps: steps
-  }));
+  };
+  localStorage.setItem('sb_settings', JSON.stringify(settingsData));
+  if(window._fbSaveSettings){ window._fbSaveSettings(settingsData).catch(e=>{}); }
   toast('✅ Settings saved!');
 }
 
 function loadSettings(){
-  try{
-    const s=JSON.parse(localStorage.getItem('sb_settings')||'{}');
-    document.getElementById('settingBizName').value  = s.bizName||'';
-    document.getElementById('settingEmail').value    = s.email||'';
-    document.getElementById('settingWhatsApp').value = s.whatsapp||'';
-    document.getElementById('settingWebsite').value  = s.website||'';
-    document.getElementById('settingClosing').value  = s.closing||'';
-    // Load schedule steps
-    const container=document.getElementById('scheduleSteps');
-    container.innerHTML='';
-    const steps=s.scheduleSteps||getDefaultSteps();
-    steps.forEach(step=>addScheduleStep(step));
-  }catch(e){}
+  const applyS = (s) => {
+    try{
+      document.getElementById('settingBizName').value  = s.bizName||'';
+      document.getElementById('settingEmail').value    = s.email||'';
+      document.getElementById('settingWhatsApp').value = s.whatsapp||'';
+      document.getElementById('settingWebsite').value  = s.website||'';
+      document.getElementById('settingClosing').value  = s.closing||'';
+      const container=document.getElementById('scheduleSteps');
+      container.innerHTML='';
+      const steps=s.scheduleSteps||getDefaultSteps();
+      steps.forEach(step=>addScheduleStep(step));
+    }catch(e){}
+  };
+  const local = () => { try{ applyS(JSON.parse(localStorage.getItem('sb_settings')||'{}')); }catch(e){} };
+  if(window._fbGetSettings){
+    window._fbGetSettings().then(d=>{ if(d.exists()) applyS(d.data()); else local(); }).catch(local);
+  } else local();
 }
 
 function getDefaultSteps(){
@@ -756,9 +764,10 @@ function sendConf(method){
     const waNum = num.length === 10 ? '1' + num : num;
     window.open('https://wa.me/' + waNum + '?text=' + encoded, '_blank');
   } else if(method==='email'){
-    const gmailUrl = 'https://mail.google.com/mail/?view=cm&fs=1&to=' + encodeURIComponent(document.getElementById('phone').value||'') + '&su=' + encodeURIComponent('Your Order Confirmation - Simas Baking') + '&body=' + encoded;
+    const emailTo = document.getElementById('phone').value||'';
+    const subject = encodeURIComponent('Your Order Confirmation - Simas Baking');
     window.open('mailto:' + emailTo + '?subject=' + subject + '&body=' + encoded, '_blank');
-  } else if(method==='sms'){
+    } else if(method==='sms'){
     window.open('sms:' + (phone||'') + '?body=' + encoded, '_blank');
   }
 }
