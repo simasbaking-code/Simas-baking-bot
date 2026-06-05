@@ -764,10 +764,26 @@ function sendConf(method){
     const waNum = num.length === 10 ? '1' + num : num;
     window.open('https://wa.me/' + waNum + '?text=' + encoded, '_blank');
   } else if(method==='email'){
-    const emailTo = document.getElementById('phone').value||'';
-    const subject = encodeURIComponent('Your Order Confirmation - Simas Baking');
-    const gmailUrl = 'https://mail.google.com/mail/?view=cm&fs=1&to=' + encodeURIComponent(emailTo) + '&su=' + subject + '&body=' + encoded;
-    window.open(gmailUrl, '_blank');
+    // Copy message to clipboard then open Gmail
+    navigator.clipboard.writeText(msg).then(()=>{
+      toast('📋 Message copied! Opening Gmail...');
+      setTimeout(()=>{
+        const emailTo = document.getElementById('phone').value||'';
+        const subject = encodeURIComponent('Your Order Confirmation - Simas Baking');
+        window.open('https://mail.google.com/mail/?view=cm&fs=1&to=' + encodeURIComponent(emailTo) + '&su=' + subject, '_blank');
+      }, 800);
+    }).catch(()=>{
+      // Fallback if clipboard fails
+      const ta=document.createElement('textarea');
+      ta.value=msg; document.body.appendChild(ta); ta.select();
+      document.execCommand('copy'); document.body.removeChild(ta);
+      toast('📋 Message copied! Opening Gmail...');
+      setTimeout(()=>{
+        const emailTo = document.getElementById('phone').value||'';
+        const subject = encodeURIComponent('Your Order Confirmation - Simas Baking');
+        window.open('https://mail.google.com/mail/?view=cm&fs=1&to=' + encodeURIComponent(emailTo) + '&su=' + subject, '_blank');
+      }, 800);
+    });
     } else if(method==='sms'){
     window.open('sms:' + (phone||'') + '?body=' + encoded, '_blank');
   }
