@@ -1,0 +1,1868 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+<title>Sima's Baking — Order Form</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getFirestore, collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBJrnbpLLeoMqNTL3R6sO4wBO2grPPhJMg",
+    authDomain: "simasbaking-40191.firebaseapp.com",
+    projectId: "simasbaking-40191",
+    storageBucket: "simasbaking-40191.firebasestorage.app",
+    messagingSenderId: "744777195015",
+    appId: "1:744777195015:web:b560fad2b2ecad599b14a2"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  const ordersCol = collection(db, 'orders');
+
+  // Expose DB functions to global scope
+  window._db = db;
+  window._ordersCol = ordersCol;
+  window._fbSetDoc = (id, data) => setDoc(doc(db, 'orders', id), data);
+  window._fbGetDoc = (id) => getDoc(doc(db, 'orders', id));
+  window._fbGetDocs = () => getDocs(query(ordersCol, orderBy('savedAt','desc')));
+  window._fbDeleteDoc = (id) => deleteDoc(doc(db, 'orders', id));
+  window._fbOnSnapshot = (cb) => onSnapshot(query(ordersCol, orderBy('savedAt','desc')), cb);
+  window._fbReady = true;
+  window._fbSaveSettings = (data) => setDoc(doc(db, 'settings', 'main'), data);
+  window._fbGetSettings  = ()     => getDoc(doc(db, 'settings', 'main'));
+
+  // Listen for real-time updates and refresh dashboard/calendar if open
+  onSnapshot(query(ordersCol, orderBy('savedAt','desc')), (snapshot) => {
+    // Cache orders locally for fast access
+    window._ordersCache = {};
+    snapshot.forEach(d => { window._ordersCache[d.id] = d.data(); });
+    // Refresh current view
+    const dash = document.getElementById('dashView');
+    const cal  = document.getElementById('calView');
+    if(dash && dash.style.display !== 'none') renderOrders();
+    if(cal  && cal.style.display  !== 'none') renderCalendar();
+  });
+
+  console.log('Firebase connected ✅');
+</script>
+<style>
+  :root {
+    --bg:#faf3ee; --card:#fffaf6; --border:#e8d5c4;
+    --tan:#b08570; --tan-dk:#8a6550; --dark:#3d2b1f;
+    --mid:#9a7060; --blush:#f3e4d8; --check:#b08570;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);font-family:'Jost',sans-serif;color:var(--dark);padding-bottom:70px;}
+
+  .header{background:var(--card);border-bottom:1.5px solid var(--border);padding:14px 22px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+  .logo img{height:46px;width:auto;}
+  .btn-new{background:var(--tan);color:#fff;border:none;border-radius:22px;padding:10px 20px;font-family:'Jost',sans-serif;font-size:14px;font-weight:500;cursor:pointer;}
+  .btn-new:active{background:var(--tan-dk);}
+
+  .form-wrap{max-width:760px;margin:0 auto;padding:22px 16px 0;}
+
+  .card{background:var(--card);border:1.5px solid var(--border);border-radius:16px;padding:20px 20px;margin-bottom:15px;}
+  .stitle{font-family:'Cormorant Garamond',serif;font-size:18px;font-style:italic;color:var(--tan);font-weight:500;padding-bottom:10px;margin-bottom:15px;border-bottom:1px solid var(--border);}
+
+  .row{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:12px;}
+  .row:last-child{margin-bottom:0;}
+  .field{display:flex;flex-direction:column;flex:1;min-width:155px;}
+  .field.full{flex:100%;min-width:100%;}
+  label.lbl{font-size:10px;font-weight:500;letter-spacing:1px;text-transform:uppercase;color:var(--mid);margin-bottom:5px;}
+  input[type="text"],input[type="tel"],input[type="date"],input[type="time"],textarea,select{background:var(--bg);border:1.5px solid var(--border);border-radius:9px;padding:10px 12px;font-family:'Jost',sans-serif;font-size:15px;color:var(--dark);width:100%;outline:none;-webkit-appearance:none;transition:border-color .18s;}
+  input:focus,textarea:focus{border-color:var(--tan);}
+  textarea{resize:vertical;min-height:76px;}
+
+  .pills{display:flex;flex-wrap:wrap;gap:8px;}
+  .pills input[type="radio"]{display:none;}
+  .pills label{padding:8px 17px;border:1.5px solid var(--border);border-radius:22px;font-size:14px;cursor:pointer;color:var(--mid);font-weight:500;transition:all .15s;user-select:none;}
+  .pills input[type="radio"]:checked+label{background:var(--tan);border-color:var(--tan);color:#fff;}
+
+  .status-wrap{display:flex;gap:9px;flex-wrap:wrap;}
+  .sbtn{padding:9px 17px;border-radius:22px;border:1.5px solid var(--border);font-size:13px;font-weight:500;cursor:pointer;background:var(--bg);color:var(--mid);font-family:'Jost',sans-serif;transition:all .15s;user-select:none;}
+  .s-confirmed{background:#e6f5ec;border-color:#7aac88;color:#2d6a3f;}
+  .s-pending{background:#fdf3e0;border-color:#d4a430;color:#7a5400;}
+  .s-cancelled{background:#fde8e8;border-color:#c47070;color:#721c24;}
+
+  .cbox-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:8px;}
+  .ci{display:flex;align-items:center;gap:9px;cursor:pointer;padding:10px 11px;border:1.5px solid var(--border);border-radius:9px;font-size:14px;background:var(--bg);transition:all .14s;user-select:none;}
+  .ci:hover{border-color:var(--tan);}
+  .ci input[type="checkbox"]{display:none;}
+  .box{width:17px;height:17px;border:2px solid var(--border);border-radius:4px;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .14s;}
+  .ci input:checked~.box{background:var(--check);border-color:var(--check);}
+  .ci input:checked~.box::after{content:'✓';color:#fff;font-size:11px;font-weight:700;}
+  .ci input:checked~span{color:var(--tan-dk);font-weight:500;}
+  .ci.request{opacity:.75;}
+  .ci.request span::after{content:' (by request)';font-size:11px;color:var(--mid);}
+
+  .shapes{display:flex;flex-wrap:wrap;gap:9px;}
+  .shp{display:flex;flex-direction:column;align-items:center;gap:5px;padding:11px 14px;border:1.5px solid var(--border);border-radius:11px;background:var(--bg);cursor:pointer;transition:all .15s;user-select:none;min-width:70px;}
+  .shp .si{font-size:21px;}
+  .shp .sl{font-size:11px;color:var(--mid);font-weight:500;}
+  .shp.sel{border-color:var(--tan);background:var(--blush);}
+  .shp.sel .sl{color:var(--tan-dk);}
+
+  /* filling cards — show as pairing chips */
+  .filling-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;}
+  .fi{display:flex;align-items:flex-start;gap:9px;cursor:pointer;padding:11px 12px;border:1.5px solid var(--border);border-radius:9px;font-size:13px;background:var(--bg);transition:all .14s;user-select:none;line-height:1.4;}
+  .fi:hover{border-color:var(--tan);}
+  .fi input[type="checkbox"]{display:none;}
+  .fi input:checked~.box{background:var(--check);border-color:var(--check);}
+  .fi input:checked~.box::after{content:'✓';color:#fff;font-size:11px;font-weight:700;}
+  .fi input:checked~span{color:var(--tan-dk);font-weight:500;}
+
+  .photo-row{display:flex;gap:10px;flex-wrap:wrap;}
+  .pslot{width:108px;height:108px;border:2px dashed var(--border);border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;background:var(--bg);overflow:hidden;position:relative;transition:border-color .18s;}
+  .pslot:hover{border-color:var(--tan);}
+  .pslot img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0;}
+  .pslot input[type="file"]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+  .pslot .pi{font-size:25px;color:var(--border);pointer-events:none;}
+  .pslot .pl{font-size:10px;color:var(--mid);margin-top:3px;pointer-events:none;}
+  .prmv{position:absolute;top:4px;right:4px;background:rgba(0,0,0,.45);color:#fff;border:none;border-radius:50%;width:21px;height:21px;font-size:12px;cursor:pointer;display:none;align-items:center;justify-content:center;z-index:10;}
+  .pslot.has-img .prmv{display:flex;}
+  .pslot.has-img .pi,.pslot.has-img .pl{display:none;}
+
+  .price-section{display:flex;flex-direction:column;gap:13px;}
+  .price-row{display:flex;align-items:center;gap:14px;}
+  .plbl{font-size:14px;color:var(--mid);font-weight:500;min-width:95px;}
+  .price-row input{max-width:160px;}
+  .balance-box{padding-top:14px;border-top:2px solid var(--border);display:flex;align-items:center;gap:16px;}
+  .balance-num{font-family:'Cormorant Garamond',serif;font-size:32px;font-weight:600;color:var(--tan);}
+
+  .dessert-table{width:100%;border-collapse:collapse;}
+  .dessert-table th{text-align:left;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mid);font-weight:500;padding:0 0 8px;border-bottom:1px solid var(--border);}
+  .dessert-table th:last-child{text-align:right;}
+  .dessert-table td{padding:9px 0;border-bottom:1px solid #f0e0d3;font-size:14px;vertical-align:middle;}
+  .dessert-table td:last-child{text-align:right;}
+  .dessert-table tr:last-child td{border-bottom:none;}
+  .qty-inp{width:54px!important;padding:6px 7px!important;text-align:center;min-width:0!important;}
+  .price-tag{color:var(--mid);font-size:13px;}
+
+  .footer{display:flex;gap:11px;justify-content:center;flex-wrap:wrap;padding:20px 16px 0;}
+  .btn{padding:12px 28px;border-radius:28px;border:none;font-family:'Jost',sans-serif;font-size:15px;font-weight:500;cursor:pointer;transition:all .2s;}
+  .btn-save{background:var(--tan);color:#fff;}
+  .btn-save:active{background:var(--tan-dk);}
+  .btn-clear{background:var(--card);border:1.5px solid var(--border);color:var(--mid);}
+  .btn-print{background:var(--dark);color:#fff;}
+  .btn-pdf{background:#4a7c5f;color:#fff;}
+  .btn-conf{background:#4a90d9;color:#fff;}
+  .btn-sched{background:#7aac88;color:#fff;}
+
+  .toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--dark);color:#fff;padding:11px 24px;border-radius:22px;font-size:14px;transition:transform .35s cubic-bezier(.34,1.56,.64,1);z-index:999;pointer-events:none;}
+  .toast.show{transform:translateX(-50%) translateY(0);}
+
+
+
+  /* ── CALENDAR ── */
+  .cal-day{
+    background:var(--card);border:1.5px solid var(--border);border-radius:10px;
+    min-height:64px;padding:6px 6px 4px;cursor:pointer;transition:border-color .15s;
+    position:relative;
+  }
+  .cal-day:hover{border-color:var(--tan);}
+  .cal-day.today{border-color:var(--tan);background:var(--blush);}
+  .cal-day.other-month{opacity:0.35;}
+  .cal-day-num{font-size:13px;font-weight:600;color:var(--dark);margin-bottom:3px;}
+  .cal-day.today .cal-day-num{color:var(--tan);}
+  .cal-dot{
+    display:block;width:100%;border-radius:4px;
+    padding:2px 4px;font-size:10px;font-weight:500;
+    color:#fff;margin-bottom:2px;white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis;line-height:1.4;
+  }
+  .cal-dot.confirmed{background:#7aac88;}
+  .cal-dot.pending{background:#d4a430;}
+  .cal-dot.cancelled{background:#c47070;}
+  .cal-dot.none{background:var(--tan);}
+  .cal-more{font-size:10px;color:var(--mid);font-weight:500;}
+  .day-detail-card{background:var(--card);border:1.5px solid var(--border);border-radius:14px;padding:16px 18px;margin-bottom:10px;}
+  .day-detail-title{font-family:'Cormorant Garamond',serif;font-size:17px;font-style:italic;color:var(--tan);margin-bottom:12px;font-weight:500;}
+
+  /* ── SAVED ORDERS DRAWER ── */
+  .drawer-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:200;display:none;align-items:flex-end;}
+  .drawer-overlay.open{display:flex;}
+  .drawer{background:var(--card);border-radius:22px 22px 0 0;width:100%;max-height:82vh;overflow-y:auto;padding:0 0 30px;}
+  .drawer-handle{width:40px;height:4px;background:var(--border);border-radius:4px;margin:14px auto 0;}
+  .drawer-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px 12px;border-bottom:1px solid var(--border);}
+  .drawer-title{font-family:'Cormorant Garamond',serif;font-size:20px;font-style:italic;color:var(--tan);font-weight:500;}
+  .drawer-close{background:none;border:none;font-size:22px;color:var(--mid);cursor:pointer;padding:4px 8px;}
+  .order-list{padding:12px 16px;display:flex;flex-direction:column;gap:10px;}
+  .order-card{background:var(--bg);border:1.5px solid var(--border);border-radius:13px;padding:14px 15px;cursor:pointer;transition:border-color .15s;}
+  .order-card:hover{border-color:var(--tan);}
+  .oc-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
+  .oc-name{font-size:15px;font-weight:600;color:var(--dark);}
+  .oc-date{font-size:12px;color:var(--mid);}
+  .oc-meta{font-size:13px;color:var(--mid);line-height:1.5;}
+  .oc-total{font-size:14px;font-weight:600;color:var(--tan);margin-top:5px;}
+  .oc-actions{display:flex;gap:8px;margin-top:10px;}
+  .oc-btn{padding:7px 14px;border-radius:18px;border:none;font-family:'Jost',sans-serif;font-size:12px;font-weight:500;cursor:pointer;}
+  .oc-del{background:#fde8e8;color:#c47070;}
+  .oc-open{background:var(--blush);color:var(--tan-dk);}
+  .no-orders{text-align:center;padding:36px 20px;color:var(--mid);font-size:15px;}
+  .btn-orders{background:var(--blush);color:var(--tan-dk);border:1.5px solid var(--border);}
+
+  /* ── NAV TABS ── */
+  .nav-tabs{display:flex;background:var(--card);border-bottom:1.5px solid var(--border);position:sticky;top:72px;z-index:90;}
+  .nav-tab{flex:1;padding:13px 8px;text-align:center;font-size:13px;font-weight:500;color:var(--mid);cursor:pointer;border-bottom:3px solid transparent;transition:all .18s;user-select:none;}
+  .nav-tab.active{color:var(--tan);border-bottom-color:var(--tan);}
+
+  /* ── DASHBOARD ── */
+  .dashboard{max-width:760px;margin:0 auto;padding:22px 16px 0;display:none;}
+  .dash-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:11px;margin-bottom:18px;}
+  .stat-card{background:var(--card);border:1.5px solid var(--border);border-radius:14px;padding:16px 14px;text-align:center;}
+  .stat-num{font-family:'Cormorant Garamond',serif;font-size:30px;font-weight:600;color:var(--tan);line-height:1;}
+  .stat-lbl{font-size:11px;color:var(--mid);font-weight:500;margin-top:4px;letter-spacing:0.5px;}
+
+  .search-wrap{position:relative;margin-bottom:14px;}
+  .search-wrap input{padding-left:36px;background:var(--card);}
+  .search-icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:15px;pointer-events:none;}
+
+  .orders-list{display:flex;flex-direction:column;gap:10px;}
+  .order-item{background:var(--card);border:1.5px solid var(--border);border-radius:14px;padding:15px 16px;transition:border-color .15s;}
+  .order-item:hover{border-color:var(--tan);}
+  .oi-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;}
+  .oi-name{font-size:16px;font-weight:600;color:var(--dark);}
+  .oi-badge{font-size:11px;font-weight:500;padding:3px 10px;border-radius:22px;}
+  .badge-confirmed{background:#e6f5ec;color:#2d6a3f;}
+  .badge-pending{background:#fdf3e0;color:#7a5400;}
+  .badge-cancelled{background:#fde8e8;color:#721c24;}
+  .badge-none{background:var(--blush);color:var(--mid);}
+  .oi-meta{font-size:13px;color:var(--mid);line-height:1.6;}
+  .oi-total{font-size:14px;font-weight:600;color:var(--tan);margin-top:4px;}
+  .oi-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+  .oi-btn{padding:7px 14px;border-radius:18px;border:none;font-family:'Jost',sans-serif;font-size:12px;font-weight:500;cursor:pointer;transition:all .14s;}
+  .oi-view{background:var(--blush);color:var(--tan-dk);}
+  .oi-del{background:#fde8e8;color:#c47070;}
+  .oi-complete{background:#e6f5ec;color:#2d6a3f;}
+  .oi-repeat{background:#e8eaf6;color:#3949ab;}
+  .oi-history{background:var(--blush);color:var(--tan-dk);}
+  .no-orders-msg{text-align:center;padding:50px 20px;color:var(--mid);font-size:15px;line-height:1.7;}
+
+  /* section filter */
+  .filter-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;}
+  .ftab{padding:7px 16px;border-radius:22px;border:1.5px solid var(--border);font-size:13px;font-weight:500;cursor:pointer;background:var(--bg);color:var(--mid);transition:all .15s;user-select:none;}
+  .ftab.on{background:var(--tan);border-color:var(--tan);color:#fff;}
+
+  /* ── CONFIRMATION MODAL ── */
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:300;display:none;align-items:center;justify-content:center;padding:20px;}
+  .modal-overlay.open{display:flex;}
+  .modal{background:var(--card);border-radius:20px;width:100%;max-width:560px;max-height:88vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);}
+  .modal-head{padding:20px 22px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+  .modal-title{font-family:'Cormorant Garamond',serif;font-size:20px;font-style:italic;color:var(--tan);font-weight:500;}
+  .modal-close{background:none;border:none;font-size:22px;color:var(--mid);cursor:pointer;}
+  .modal-body{padding:20px 22px;}
+  .conf-preview{background:var(--bg);border:1.5px solid var(--border);border-radius:14px;padding:20px;margin-bottom:18px;font-size:14px;line-height:1.9;white-space:pre-wrap;color:var(--dark);}
+  .conf-actions{display:flex;flex-direction:column;gap:10px;}
+  .conf-btn{display:flex;align-items:center;gap:10px;padding:14px 18px;border-radius:14px;border:none;font-family:'Jost',sans-serif;font-size:15px;font-weight:500;cursor:pointer;width:100%;transition:all .15s;}
+  .conf-wa{background:#25d366;color:#fff;}
+  .conf-email{background:#4a90d9;color:#fff;}
+  .conf-sms{background:var(--dark);color:#fff;}
+  .conf-btn:active{opacity:0.85;}
+  .conf-btn .cb-icon{font-size:20px;}
+  @media print{.header,.footer,.btn{display:none!important;}body{background:#fff;}.card{border:1px solid #ccc;break-inside:avoid;}}
+  @media(max-width:480px){.cbox-grid{grid-template-columns:repeat(2,1fr);}.filling-grid{grid-template-columns:1fr;}.card{padding:14px;}}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo"><img src="data:image/png;base64,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" alt="Sima's Baking"></div>
+  <button class="btn-new" onclick="newOrder()">+ New Order</button>
+</div>
+
+
+<!-- NAV TABS -->
+<div class="nav-tabs">
+  <div class="nav-tab active" id="tab-form"      onclick="switchTab('form')">📋 New Order</div>
+  <div class="nav-tab"        id="tab-dashboard"  onclick="switchTab('dashboard')">📊 My Orders</div>
+  <div class="nav-tab"        id="tab-calendar"   onclick="switchTab('calendar')">📅 Calendar</div>
+  <div class="nav-tab"        id="tab-replies"    onclick="switchTab('replies')">💬 Replies</div>
+  <div class="nav-tab"        id="tab-settings"   onclick="switchTab('settings')">⚙️ Settings</div>
+</div>
+
+<!-- DASHBOARD -->
+<div class="dashboard" id="dashView">
+  <div class="dash-stats">
+    <div class="stat-card"><div class="stat-num" id="statTotal">0</div><div class="stat-lbl">Total Orders</div></div>
+    <div class="stat-card"><div class="stat-num" id="statUpcoming">0</div><div class="stat-lbl">Upcoming</div></div>
+    <div class="stat-card"><div class="stat-num" id="statRevenue">$0</div><div class="stat-lbl">Revenue</div></div>
+  </div>
+  <!-- Pending Payments Alert -->
+  <div id="pendingPaymentsBanner" style="display:none;background:#fdf3e0;border:1.5px solid #d4a430;border-radius:14px;padding:14px 18px;margin-bottom:14px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+      <div style="font-size:14px;font-weight:600;color:#7a5400;">⚠️ Unpaid Orders</div>
+      <div id="pendingPaymentsTotal" style="font-family:Cormorant Garamond,serif;font-size:20px;font-weight:600;color:#d4a430;"></div>
+    </div>
+    <div id="pendingPaymentsList" style="display:flex;flex-direction:column;gap:8px;"></div>
+  </div>
+
+  <!-- Monthly Revenue Chart -->
+  <div style="background:var(--card);border:1.5px solid var(--border);border-radius:16px;padding:18px 18px 14px;margin-bottom:14px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div style="font-family:'Cormorant Garamond',serif;font-size:18px;font-style:italic;color:var(--tan);font-weight:500;">Monthly Revenue</div>
+      <select id="revenueYear" onchange="renderOrders()" style="background:var(--bg);border:1.5px solid var(--border);border-radius:8px;padding:6px 10px;font-family:'Jost',sans-serif;font-size:13px;color:var(--dark);outline:none;"></select>
+    </div>
+    <div id="revenueChart" style="display:flex;align-items:flex-end;gap:4px;height:80px;width:100%;"></div>
+    <div id="revenueLabels" style="display:flex;gap:4px;margin-top:4px;"></div>
+    <div id="revenueSummary" style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);display:flex;gap:16px;flex-wrap:wrap;"></div>
+  </div>
+
+  <div class="filter-tabs">
+    <div class="ftab on" onclick="filterOrders('all',this)">All</div>
+    <div class="ftab" onclick="filterOrders('confirmed',this)">✅ Confirmed</div>
+    <div class="ftab" onclick="filterOrders('pending',this)">⏳ Pending</div>
+    <div class="ftab" onclick="filterOrders('cancelled',this)">❌ Cancelled</div>
+  </div>
+  <div class="search-wrap">
+    <span class="search-icon">🔍</span>
+    <input type="text" id="orderSearch" placeholder="Search by client name…" oninput="renderOrders()">
+  </div>
+  <div class="orders-list" id="ordersList"></div>
+</div>
+
+<div class="form-wrap" id="formView"><div id="orderForm">
+
+  <!-- CLIENT -->
+  <div class="card">
+    <div class="stitle">Client Info</div>
+    <div class="row">
+      <div class="field"><label class="lbl">Client Name</label><input type="text" id="name" placeholder="Full name"></div>
+      <div class="field"><label class="lbl">Phone / Contact</label><input type="tel" id="phone" placeholder="Phone or @handle"></div>
+    </div>
+    <div class="row">
+      <div class="field"><label class="lbl">Event Date</label><input type="date" id="edate"></div>
+      <div class="field"><label class="lbl">Pickup Time</label><input type="time" id="ptime"></div>
+    </div>
+    <div class="row">
+      <div class="field full"><label class="lbl">Occasion / Theme</label><input type="text" id="occasion" placeholder="e.g. Birthday, Baby Shower, Quinceañera…"></div>
+    </div>
+  </div>
+
+  <!-- STATUS -->
+  <div class="card">
+    <div class="stitle">Order Status</div>
+    <div class="status-wrap">
+      <button class="sbtn" id="st-pending"   onclick="setStatus('pending')">⏳ Pending</button>
+      <button class="sbtn" id="st-confirmed" onclick="setStatus('confirmed')">✅ Confirmed</button>
+      <button class="sbtn" id="st-cancelled" onclick="setStatus('cancelled')">❌ Cancelled</button>
+    </div>
+  </div>
+
+  <!-- ORDER TYPE -->
+  <div class="card">
+    <div class="stitle">Order Type</div>
+    <div class="pills">
+      <input type="radio" name="otype" id="ot-cake" value="Cake" checked><label for="ot-cake">🎂 Cake</label>
+      <input type="radio" name="otype" id="ot-dessert" value="Desserts"><label for="ot-dessert">🍭 Desserts</label>
+      <input type="radio" name="otype" id="ot-both" value="Both"><label for="ot-both">🎂🍭 Both</label>
+    </div>
+  </div>
+
+  <!-- PHOTOS -->
+  <div class="card">
+    <div class="stitle">Inspo / Reference Photos</div>
+    <div class="photo-row" id="photoArea"></div>
+  </div>
+
+  <!-- ── CAKE ── -->
+  <div id="cakeSection">
+
+    <div class="card">
+      <div class="stitle">Cake Size</div>
+      <div class="cbox-grid">
+        <label class="ci"><input type="checkbox" name="size" value="4 inch"><div class="box"></div><span>4 inch</span></label>
+        <label class="ci"><input type="checkbox" name="size" value="6 inch"><div class="box"></div><span>6 inch</span></label>
+        <label class="ci"><input type="checkbox" name="size" value="8 inch"><div class="box"></div><span>8 inch</span></label>
+        <label class="ci"><input type="checkbox" name="size" value="10 inch"><div class="box"></div><span>10 inch</span></label>
+        <label class="ci"><input type="checkbox" name="size" value="Bento Set"><div class="box"></div><span>Bento Set</span></label>
+        <label class="ci"><input type="checkbox" name="size" value="Sheet Cake"><div class="box"></div><span>Sheet Cake</span></label>
+        <label class="ci"><input type="checkbox" name="size" value="Tiered"><div class="box"></div><span>Tiered</span></label>
+        <label class="ci"><input type="checkbox" name="size" value="Other"><div class="box"></div><span>Other</span></label>
+      </div>
+      <div class="row" style="margin-top:12px;">
+        <div class="field"><label class="lbl">Tier / Size Notes</label><input type="text" id="sizenotes" placeholder="e.g. 2-tier: 6 + 8 inch"></div>
+        <div class="field"><label class="lbl">Approx. Servings</label><input type="text" id="servings" placeholder="e.g. 20–25"></div>
+      </div>
+      <div style="margin-top:12px;">
+        <label class="lbl">Number of Layers</label>
+        <div style="display:flex;gap:8px;margin-top:6px;">
+          <label class="ci" style="flex:1;justify-content:center;"><input type="radio" name="layers" value="2"><div class="box" style="border-radius:50%;"></div><span>2 Layers</span></label>
+          <label class="ci" style="flex:1;justify-content:center;"><input type="radio" name="layers" value="3"><div class="box" style="border-radius:50%;"></div><span>3 Layers</span></label>
+          <label class="ci" style="flex:1;justify-content:center;"><input type="radio" name="layers" value="4"><div class="box" style="border-radius:50%;"></div><span>4 Layers</span></label>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="stitle">Shape</div>
+      <div class="shapes" id="shapeGrid">
+        <div class="shp" data-shape="Round"     onclick="pickShape(this)"><div class="si">⚪</div><span class="sl">Round</span></div>
+        <div class="shp" data-shape="Heart"     onclick="pickShape(this)"><div class="si">🤍</div><span class="sl">Heart</span></div>
+        <div class="shp" data-shape="Square"    onclick="pickShape(this)"><div class="si">⬜</div><span class="sl">Square</span></div>
+        <div class="shp" data-shape="Rectangle" onclick="pickShape(this)"><div class="si">▭</div><span class="sl">Rectangle</span></div>
+        <div class="shp" data-shape="Star"      onclick="pickShape(this)"><div class="si">⭐</div><span class="sl">Star</span></div>
+        <div class="shp" data-shape="Coffin"    onclick="pickShape(this)"><div class="si">🪦</div><span class="sl">Coffin</span></div>
+        <div class="shp" data-shape="Number"    onclick="pickShape(this)"><div class="si">#️⃣</div><span class="sl">Number</span></div>
+        <div class="shp" data-shape="Custom"    onclick="pickShape(this)"><div class="si">✏️</div><span class="sl">Custom</span></div>
+      </div>
+    </div>
+
+    <!-- FLAVORS — exactly what's on the card -->
+    <div class="card">
+      <div class="stitle">Cake Flavor</div>
+      <div class="cbox-grid">
+        <label class="ci"><input type="checkbox" name="flavor" value="Vanilla"><div class="box"></div><span>Vanilla</span></label>
+        <label class="ci"><input type="checkbox" name="flavor" value="Chocolate"><div class="box"></div><span>Chocolate</span></label>
+        <label class="ci"><input type="checkbox" name="flavor" value="Funfetti"><div class="box"></div><span>Funfetti</span></label>
+        <label class="ci"><input type="checkbox" name="flavor" value="Red Velvet"><div class="box"></div><span>Red Velvet</span></label>
+        <label class="ci request"><input type="checkbox" name="flavor" value="Carrot"><div class="box"></div><span>Carrot</span></label>
+      </div>
+      <div style="margin-top:12px;">
+        <div style="font-size:11px;color:var(--mid);font-weight:500;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Dietary Requirements</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;">
+          <label class="ci"><input type="checkbox" name="dietary" value="Gluten Free"><div class="box"></div><span>🌾 Gluten Free</span></label>
+          <label class="ci"><input type="checkbox" name="dietary" value="Dairy Free"><div class="box"></div><span>🥛 Dairy Free</span></label>
+          <label class="ci"><input type="checkbox" name="dietary" value="Vegan"><div class="box"></div><span>🌱 Vegan</span></label>
+        </div>
+      </div>
+      <div class="row" style="margin-top:12px;">
+        <div class="field full"><label class="lbl">Other / Custom Flavor</label><input type="text" id="flavorOther" placeholder="Write custom flavor here"></div>
+      </div>
+    </div>
+
+    <!-- FILLINGS — exact pairings from the card -->
+    <div class="card">
+      <div class="stitle">Filling</div>
+      <div class="filling-grid">
+        <label class="fi"><input type="checkbox" name="filling" value="Vanilla Cream"><div class="box"></div><span>Vanilla Cream</span></label>
+        <label class="fi"><input type="checkbox" name="filling" value="Chocolate Cream"><div class="box"></div><span>Chocolate Cream</span></label>
+        <label class="fi"><input type="checkbox" name="filling" value="Cream Cheese Cream"><div class="box"></div><span>Cream Cheese Cream</span></label>
+        <label class="fi"><input type="checkbox" name="filling" value="Fresh Strawberries + Vanilla Cream"><div class="box"></div><span>Fresh Strawberries + Vanilla Cream</span></label>
+        <label class="fi" onclick="toggleNutellaBrands(this)"><input type="checkbox" name="filling" value="Nutella"><div class="box"></div><span>🫙 Nutella</span></label>
+        <div id="nutellaBrands" style="display:none;grid-column:1/-1;background:var(--blush);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-top:-2px;">
+          <div style="font-size:11px;color:var(--mid);font-weight:500;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">Add chocolate:</div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;">
+            <label class="ci"><input type="checkbox" name="chocbrand" value="Kinder"><div class="box"></div><span>🍫 Kinder</span></label>
+            <label class="ci"><input type="checkbox" name="chocbrand" value="Ferrero"><div class="box"></div><span>🍬 Ferrero</span></label>
+            <label class="ci"><input type="checkbox" name="chocbrand" value="Lindt"><div class="box"></div><span>🍫 Lindt</span></label>
+          </div>
+        </div>
+        <label class="fi"><input type="checkbox" name="filling" value="Dulce de Leche + Biscoff"><div class="box"></div><span>Dulce de Leche + Biscoff Cookies</span></label>
+        <label class="fi"><input type="checkbox" name="filling" value="Pistachio Cream + Raspberry Jam"><div class="box"></div><span>Pistachio Cream + Raspberry Jam</span></label>
+      </div>
+    </div>
+
+    <!-- DESIGN -->
+    <div class="card">
+      <div class="stitle">Design Notes</div>
+      <div class="row">
+        <div class="field full"><label class="lbl">Message on Cake</label><input type="text" id="cakeMsg" placeholder='"Happy Birthday Sofia!"'></div>
+      </div>
+      <div class="row">
+        <div class="field full"><label class="lbl">Color Palette</label><input type="text" id="colors" placeholder="e.g. black, dusty purple, silver"></div>
+      </div>
+      <div class="row">
+        <div class="field full"><label class="lbl">Design Details</label><textarea id="design" placeholder="Describe the design — texture, flowers, pattern, glitter, toppers, drip, etc."></textarea></div>
+      </div>
+    </div>
+
+    <!-- CAKE ADD-ONS -->
+    <div class="card">
+      <div class="stitle">Cake Add-Ons</div>
+      <div class="cbox-grid">
+        <label class="ci"><input type="checkbox" name="cakeaddon" value="Bow"><div class="box"></div><span>🎀 Bow</span></label>
+        <label class="ci"><input type="checkbox" name="cakeaddon" value="Glitter"><div class="box"></div><span>✨ Glitter</span></label>
+        <label class="ci"><input type="checkbox" name="cakeaddon" value="Cake Topper"><div class="box"></div><span>🎂 Cake Topper</span></label>
+        <label class="ci"><input type="checkbox" name="cakeaddon" value="Edible Image"><div class="box"></div><span>🖼 Edible Image</span></label>
+
+      </div>
+      <div class="row" style="margin-top:12px;">
+        <div class="field full"><label class="lbl">Add-On Notes</label><input type="text" id="cakeaddonNotes" placeholder="e.g. gold glitter, bow color, topper text…"></div>
+      </div>
+    </div>
+
+  </div><!-- /cakeSection -->
+
+  <!-- ── DESSERTS ── -->
+  <div id="dessertSection" style="display:none;">
+    <div class="card">
+      <div class="stitle">Desserts (per dozen)</div>
+      <table class="dessert-table">
+        <thead><tr><th>Item</th><th>Price / dz</th><th>Qty (dz)</th></tr></thead>
+        <tbody>
+          <tr><td>Cupcakes</td><td class="price-tag">$84</td><td><input type="text" class="qty-inp" placeholder="0"></td></tr>
+          <tr><td>Classic Cake Pops — plain</td><td class="price-tag">$78</td><td><input type="text" class="qty-inp" placeholder="0"></td></tr>
+          <tr><td>Classic Cake Pops — decorated</td><td class="price-tag">$96–108</td><td><input type="text" class="qty-inp" placeholder="0"></td></tr>
+          <tr><td>Disc Pops — plain</td><td class="price-tag">$72</td><td><input type="text" class="qty-inp" placeholder="0"></td></tr>
+          <tr><td>Disc Pops — detailed</td><td class="price-tag">$84–96</td><td><input type="text" class="qty-inp" placeholder="0"></td></tr>
+          <tr><td>Cakesicles</td><td class="price-tag">$84</td><td><input type="text" class="qty-inp" placeholder="0"></td></tr>
+          <tr><td>Choc. Covered Oreos</td><td class="price-tag">$78</td><td><input type="text" class="qty-inp" placeholder="0"></td></tr>
+          <tr><td>Choc. Covered Rice Krispies</td><td class="price-tag">$78</td><td><input type="text" class="qty-inp" placeholder="0"></td></tr>
+          <tr><td>Choc. Covered Pretzels</td><td class="price-tag">$65</td><td><input type="text" class="qty-inp" placeholder="0"></td></tr>
+          <tr><td>Choc. Covered Strawberries</td><td class="price-tag">$78</td><td><input type="text" class="qty-inp" placeholder="0"></td></tr>
+          <tr><td>Mini Shooters</td><td class="price-tag">$84</td><td><input type="text" class="qty-inp" placeholder="0"></td></tr>
+          <tr><td>Cream Brûlée</td><td class="price-tag">$96</td><td><input type="text" class="qty-inp" placeholder="0"></td></tr>
+          <tr><td>Mini Baked Donuts</td><td class="price-tag">$60</td><td><input type="text" class="qty-inp" placeholder="0"></td></tr>
+          <tr><td>Cake Cones</td><td class="price-tag">$90</td><td><input type="text" class="qty-inp" placeholder="0"></td></tr>
+          <tr><td>Mini Tart Cake</td><td class="price-tag">$120</td><td><input type="text" class="qty-inp" placeholder="0"></td></tr>
+        </tbody>
+      </table>
+      <div class="row" style="margin-top:14px;">
+        <div class="field full"><label class="lbl">Dessert Flavor / Notes</label><input type="text" id="dessertFlavor" placeholder="e.g. Mini shooters: Ferrero Rocher & Biscoff"></div>
+      </div>
+      <div style="margin-top:14px;">
+        <div class="stitle" style="font-size:15px;margin-bottom:11px;">Add-Ons</div>
+        <div class="cbox-grid">
+          <label class="ci"><input type="checkbox" name="addon" value="Gold Leaf"><div class="box"></div><span>Gold Leaf</span></label>
+          <label class="ci"><input type="checkbox" name="addon" value="Edible Images"><div class="box"></div><span>Edible Images</span></label>
+          <label class="ci"><input type="checkbox" name="addon" value="Custom Bows"><div class="box"></div><span>Custom Bows</span></label>
+          <label class="ci"><input type="checkbox" name="addon" value="Individual Wrapping"><div class="box"></div><span>Indiv. Wrapping</span></label>
+        </div>
+      </div>
+    </div>
+  </div><!-- /dessertSection -->
+
+  <!-- PRICING -->
+  <div class="card">
+    <div class="stitle">Pricing</div>
+    <div class="price-section">
+      <div class="price-row">
+        <span class="plbl">Total</span>
+        <input type="text" id="pTotal" placeholder="$0.00" oninput="syncBalance()">
+      </div>
+      <div class="balance-box">
+        <span class="plbl" style="font-size:15px;color:var(--dark);">Balance Due</span>
+        <div class="balance-num" id="pBalance">$—</div>
+      </div>
+      <div class="row" style="margin-top:2px;">
+        <div class="field full"><label class="lbl">Zelle Confirmation / Note</label><input type="text" id="zelleNote" placeholder="Confirmation # or date received"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- NOTES -->
+  <div class="card">
+    <div class="stitle">🔒 My Notes</div>
+    <textarea id="notes" placeholder="Baking schedule, supplies needed, anything to remember…"></textarea>
+  </div>
+
+</div></div><!-- /form-wrap -->
+
+<div class="footer">
+  
+  <button class="btn btn-clear" onclick="newOrder()">Clear</button>
+  <button class="btn btn-save"  onclick="saveOrder()">💾 Save</button>
+  <button class="btn btn-conf"  onclick="openConf()">📨 Send Confirmation</button>
+  <button class="btn btn-sched" onclick="openBakingSchedule()">⏰ Baking Schedule</button>
+  <button class="btn btn-pdf"   onclick="saveAsPDF()">📄 Save as PDF</button>
+  <button class="btn btn-print" onclick="window.print()">🖨️ Print</button>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+
+
+// ── SETTINGS ──────────────────────────────────────────────────────────────────
+function saveSettings(){
+  const steps=[];
+  document.querySelectorAll('.sched-step').forEach(row=>{
+    const label=row.querySelector('.sched-label').value.trim();
+    const days=parseInt(row.querySelector('.sched-days').value)||0;
+    const emoji=row.querySelector('.sched-emoji').value||'📌';
+    if(label) steps.push({label,days,emoji});
+  });
+  const settingsData = {
+    bizName:  document.getElementById('settingBizName').value,
+    email:    document.getElementById('settingEmail').value,
+    whatsapp: document.getElementById('settingWhatsApp').value,
+    website:  document.getElementById('settingWebsite').value,
+    closing:  document.getElementById('settingClosing').value,
+    scheduleSteps: steps
+  };
+  localStorage.setItem('sb_settings', JSON.stringify(settingsData));
+  if(window._fbSaveSettings){ window._fbSaveSettings(settingsData).catch(e=>{}); }
+  toast('✅ Settings saved!');
+}
+
+function loadSettings(){
+  const applyS = (s) => {
+    try{
+      document.getElementById('settingBizName').value  = s.bizName||'';
+      document.getElementById('settingEmail').value    = s.email||'';
+      document.getElementById('settingWhatsApp').value = s.whatsapp||'';
+      document.getElementById('settingWebsite').value  = s.website||'';
+      document.getElementById('settingClosing').value  = s.closing||'';
+      const container=document.getElementById('scheduleSteps');
+      container.innerHTML='';
+      const steps=s.scheduleSteps||getDefaultSteps();
+      steps.forEach(step=>addScheduleStep(step));
+    }catch(e){}
+  };
+  const local = () => { try{ applyS(JSON.parse(localStorage.getItem('sb_settings')||'{}')); }catch(e){} };
+  if(window._fbGetSettings){
+    window._fbGetSettings().then(d=>{ if(d.exists()) applyS(d.data()); else local(); }).catch(local);
+  } else local();
+}
+
+function getDefaultSteps(){
+  return [
+    {emoji:'🛒', label:'Shop for ingredients',          days:3},
+    {emoji:'🎂', label:'Bake cake layers',               days:2},
+    {emoji:'🧈', label:'Make buttercream & fillings',    days:1},
+    {emoji:'🎨', label:'Crumb coat & decorate',          days:1},
+    {emoji:'📦', label:'Box & prepare for pickup',       days:0},
+  ];
+}
+
+function addScheduleStep(data){
+  const d = data || {emoji:'📌', label:'', days:1};
+  const container=document.getElementById('scheduleSteps');
+  const row=document.createElement('div');
+  row.className='sched-step';
+  row.style.cssText='display:flex;align-items:center;gap:8px;background:var(--bg);border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;';
+  row.innerHTML=`
+    <input class="sched-emoji" type="text" value="${d.emoji}" maxlength="2" style="width:36px;text-align:center;background:var(--blush);border:1.5px solid var(--border);border-radius:8px;padding:6px 4px;font-size:16px;cursor:pointer;">
+    <input class="sched-label" type="text" value="${d.label}" placeholder="Step name..." style="flex:1;background:var(--bg);border:1.5px solid var(--border);border-radius:8px;padding:8px 10px;font-family:'Jost',sans-serif;font-size:14px;">
+    <input class="sched-days" type="number" value="${d.days}" min="0" max="14" style="width:54px;text-align:center;background:var(--bg);border:1.5px solid var(--border);border-radius:8px;padding:8px 6px;font-family:'Jost',sans-serif;font-size:14px;">
+    <span style="font-size:11px;color:var(--mid);white-space:nowrap;">days before</span>
+    <button onclick="this.parentElement.remove()" style="background:#fde8e8;border:none;border-radius:8px;width:28px;height:28px;font-size:14px;cursor:pointer;color:#c47070;flex-shrink:0;">✕</button>`;
+  container.appendChild(row);
+}
+
+function getSettings(){
+  try{ return JSON.parse(localStorage.getItem('sb_settings')||'{}'); }
+  catch(e){ return {}; }
+}
+
+// ── BAKING SCHEDULE ───────────────────────────────────────────────────────────
+function openBakingSchedule(){
+  const eventDate = document.getElementById('edate').value;
+  const clientName = document.getElementById('name').value || 'this order';
+  const pickupTime = document.getElementById('ptime').value || '';
+
+  if(!eventDate){ toast('Please enter an event date first!'); return; }
+
+  const s = getSettings();
+  const steps = s.scheduleSteps && s.scheduleSteps.length ? s.scheduleSteps : getDefaultSteps();
+  const event = new Date(eventDate + 'T12:00:00');
+
+  const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const days=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+  let html=`<div style="font-size:14px;color:var(--mid);margin-bottom:16px;">Baking timeline for <strong style="color:var(--dark);">${clientName}</strong></div>`;
+  html+=`<div style="display:flex;flex-direction:column;gap:10px;">`;
+
+  // Sort steps by days desc
+  const sorted=[...steps].sort((a,b)=>b.days-a.days);
+
+  sorted.forEach(step=>{
+    const d=new Date(event);
+    d.setDate(d.getDate()-step.days);
+    const dayName=days[d.getDay()];
+    const dateStr=months[d.getMonth()]+' '+d.getDate();
+    const isToday=d.toDateString()===new Date().toDateString();
+    const isFuture=d>=new Date();
+    html+=`<div style="display:flex;align-items:center;gap:12px;background:${isToday?'var(--blush)':'var(--bg)'};border:1.5px solid ${isToday?'var(--tan)':'var(--border)'};border-radius:12px;padding:12px 14px;">
+      <div style="font-size:22px;width:36px;text-align:center;">${step.emoji}</div>
+      <div style="flex:1;">
+        <div style="font-size:14px;font-weight:600;color:var(--dark);">${step.label}</div>
+        <div style="font-size:12px;color:var(--mid);margin-top:2px;">${dayName}, ${dateStr}${isToday?' — Today!':''}</div>
+      </div>
+      ${step.days===0?`<div style="font-size:11px;color:var(--mid);text-align:right;">Pickup<br>${pickupTime}</div>`:''}
+    </div>`;
+  });
+
+  // Event day
+  const eventDay=days[event.getDay()];
+  const eventDateStr=months[event.getMonth()]+' '+event.getDate();
+  html+=`<div style="display:flex;align-items:center;gap:12px;background:#e6f5ec;border:1.5px solid #7aac88;border-radius:12px;padding:12px 14px;">
+    <div style="font-size:22px;width:36px;text-align:center;">🎉</div>
+    <div style="flex:1;">
+      <div style="font-size:14px;font-weight:600;color:#2d6a3f;">Event Day!</div>
+      <div style="font-size:12px;color:#4a7c5f;margin-top:2px;">${eventDay}, ${eventDateStr}${pickupTime?' — Pickup at '+pickupTime:''}</div>
+    </div>
+  </div>`;
+
+  html+=`</div>`;
+  html+=`<div style="margin-top:14px;font-size:12px;color:var(--mid);text-align:center;">💡 Edit your timeline anytime in ⚙️ Settings</div>`;
+
+  document.getElementById('scheduleModalBody').innerHTML=html;
+  document.getElementById('scheduleModal').classList.add('open');
+}
+function buildConfMessage(){
+  const name    = document.getElementById('name').value || '';
+  const date    = document.getElementById('edate').value || '';
+  const time    = document.getElementById('ptime').value || '';
+  const occasion= document.getElementById('occasion').value || '';
+  const size    = [...document.querySelectorAll('input[name="size"]:checked')].map(i=>i.value).join(', ');
+  const sizeNotes = document.getElementById('sizenotes').value || '';
+  const shape   = document.querySelector('.shp.sel')?.dataset.shape || '';
+  const flavor  = [...document.querySelectorAll('input[name="flavor"]:checked')].map(i=>i.value).join(', ');
+  const flavorOther = document.getElementById('flavorOther').value || '';
+  const filling = [...document.querySelectorAll('input[name="filling"]:checked')].map(i=>i.value).join(', ');
+  const msg     = document.getElementById('cakeMsg').value || '';
+  const colors  = document.getElementById('colors').value || '';
+  const addons  = [...document.querySelectorAll('input[name="cakeaddon"]:checked')].map(i=>i.value).join(', ');
+  const addonNotes = document.getElementById('cakeaddonNotes').value || '';
+  const total   = document.getElementById('pTotal').value || '';
+
+  let lines = [];
+  lines.push("🎂 Simas Baking - Order Confirmation");
+  lines.push('━━━━━━━━━━━━━━━━━━━━━━━━');
+  if(name)    lines.push('👤 Name: ' + name);
+  if(date)    lines.push('📅 Event Date: ' + date);
+  if(time)    lines.push('🕐 Pickup Time: ' + time);
+  if(occasion) lines.push('🎉 Occasion: ' + occasion);
+  lines.push('');
+  lines.push('🍰 Order Details');
+  lines.push('━━━━━━━━━━━━━━━━━━━━━━━━');
+  const layers = document.querySelector('input[name="layers"]:checked')?.value||'';
+  if(size)    lines.push('📐 Size: ' + size + (layers?' · '+layers+' layers':'') + (sizeNotes?' ('+sizeNotes+')':''));
+  if(shape)   lines.push('🔷 Shape: ' + shape);
+  const dietary=[...document.querySelectorAll('input[name="dietary"]:checked')].map(i=>i.value).join(', ');
+  if(flavor)  lines.push('✨ Flavor: ' + flavor + (flavorOther?' / '+flavorOther:'') + (dietary?' · '+dietary:''));
+  const chocBrands = [...document.querySelectorAll('input[name="chocbrand"]:checked')].map(i=>i.value).join(', ');
+  const fillingDisplay = filling ? (chocBrands ? filling.replace('Nutella','Nutella ('+chocBrands+')') : filling) : '';
+  if(fillingDisplay) lines.push('🍓 Filling: ' + fillingDisplay);
+  if(msg)     lines.push('📝 Message on Cake: ' + msg);
+  if(colors)  lines.push('🎨 Colors: ' + colors);
+  if(addons)  lines.push('🎀 Add-Ons: ' + addons + (addonNotes?' ('+addonNotes+')':''));
+  lines.push('');
+  lines.push('💳 Payment');
+  lines.push('━━━━━━━━━━━━━━━━━━━━━━━━');
+  if(total)   lines.push('💰 Total: ' + total);
+  lines.push('💸 Payment: Zelle');
+  lines.push('');
+  lines.push('Please review your order details above and confirm everything looks correct. Feel free to reach out with any questions! 🎂');
+  lines.push('');
+  lines.push("Thank you so much for choosing Simas Baking! 🩷");
+  lines.push('📍 simasbaking.com');
+  return lines.join('\n');
+}
+
+function openConf(){
+  const msg = buildConfMessage();
+  document.getElementById('confPreview').textContent = msg;
+  document.getElementById('confModal').classList.add('open');
+}
+
+function closeConf(){
+  document.getElementById('confModal').classList.remove('open');
+}
+
+function sendConf(method){
+  const msg = buildConfMessage();
+  const encoded = encodeURIComponent(msg);
+  const phone = document.getElementById('phone').value.replace(/[^0-9]/g,'');
+  const name = document.getElementById('name').value || '';
+
+  if(method==='whatsapp'){
+    const num = phone ? phone.replace(/[^0-9]/g,'') : '';
+    const waNum = num.length === 10 ? '1' + num : num;
+    window.open('https://wa.me/' + waNum + '?text=' + encoded, '_blank');
+  } else if(method==='email'){
+    const emailTo = document.getElementById('phone').value||'';
+    const subject = encodeURIComponent('Your Order Confirmation - Simas Baking');
+    window.open('mailto:' + emailTo + '?subject=' + subject + '&body=' + encoded, '_blank');
+    } else if(method==='sms'){
+    window.open('sms:' + (phone||'') + '?body=' + encoded, '_blank');
+  }
+}
+function buildPhotos(){
+  const a=document.getElementById('photoArea');a.innerHTML='';
+  // Multi-select button
+  const multi=document.createElement('div');
+  multi.style.cssText='width:100%;margin-bottom:10px;';
+  multi.innerHTML=`<label style="display:inline-flex;align-items:center;gap:8px;background:var(--blush);border:1.5px solid var(--border);border-radius:22px;padding:10px 18px;cursor:pointer;font-size:14px;color:var(--tan-dk);font-weight:500;">
+    <span>📸</span><span>Add up to 5 photos at once</span>
+    <input type="file" accept="image/*" multiple style="display:none;" onchange="loadMulti(event)">
+  </label>`;
+  a.appendChild(multi);
+  // Individual slots
+  const slots=document.createElement('div');
+  slots.style.cssText='display:flex;flex-wrap:wrap;gap:10px;';
+  slots.id='photoSlots';
+  for(let i=0;i<5;i++){
+    const s=document.createElement('div');s.className='pslot';s.id='ps'+i;
+    s.innerHTML=`<input type="file" accept="image/*" onchange="loadPic(event,${i})" style="position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer;z-index:5;"><div class="pi">＋</div><div class="pl">Photo ${i+1}</div><img id="pi${i}" src="" alt=""><button class="prmv" onclick="rmPic(event,${i})">✕</button>`;
+    slots.appendChild(s);
+  }
+  a.appendChild(slots);
+}
+function loadMulti(e){
+  const files=[...e.target.files].slice(0,5);
+  files.forEach((f,i)=>{
+    const r=new FileReader();
+    r.onload=ev=>{
+      document.getElementById('pi'+i).src=ev.target.result;
+      document.getElementById('ps'+i).classList.add('has-img');
+    };
+    r.readAsDataURL(f);
+  });
+}
+function loadPic(e,i){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{document.getElementById('pi'+i).src=ev.target.result;document.getElementById('ps'+i).classList.add('has-img');};r.readAsDataURL(f);}
+function rmPic(e,i){e.stopPropagation();document.getElementById('ps'+i).classList.remove('has-img');document.getElementById('pi'+i).src='';document.getElementById('ps'+i).querySelector('input[type="file"]').value='';}
+buildPhotos();
+
+document.querySelectorAll('input[name="otype"]').forEach(r=>r.addEventListener('change',toggleSections));
+function toggleSections(){
+  const v=document.querySelector('input[name="otype"]:checked').value;
+  document.getElementById('cakeSection').style.display=(v==='Cake'||v==='Both')?'':'none';
+  document.getElementById('dessertSection').style.display=(v==='Desserts'||v==='Both')?'':'none';
+}
+
+function toggleChocBrands(labelEl){
+  setTimeout(()=>{
+    const cb=labelEl.querySelector('input[type="checkbox"]');
+    const brands=document.getElementById('nutellaBrands');
+    if(brands) brands.style.display=cb.checked?'block':'none';
+    if(!cb.checked) document.querySelectorAll('input[name="chocbrand"]').forEach(r=>r.checked=false);
+  },10);
+}
+
+function toggleNutellaBrands(labelEl){
+  setTimeout(()=>{
+    const cb=labelEl.querySelector('input[type="checkbox"]');
+    const brands=document.getElementById('nutellaBrands');
+    if(brands) brands.style.display=cb.checked?'block':'none';
+    if(!cb.checked) document.querySelectorAll('input[name="chocbrand"]').forEach(r=>r.checked=false);
+  },10);
+}
+
+function pickShape(el){document.querySelectorAll('.shp').forEach(s=>s.classList.remove('sel'));el.classList.add('sel');}
+
+let currentStatus = '';
+function setStatus(s){
+  currentStatus = s;
+  ['pending','confirmed','cancelled'].forEach(id=>{
+    const b=document.getElementById('st-'+id);b.className='sbtn';
+    if(id===s)b.classList.add('s-'+id);
+  });
+}
+
+function syncBalance(){
+  const t=parseFloat(document.getElementById('pTotal').value.replace(/[^0-9.]/g,''))||0;
+  document.getElementById('pBalance').textContent=t?'$'+t.toFixed(2):'$—';
+}
+
+function compressPhoto(src, maxW, quality){
+  return new Promise(resolve=>{
+    if(!src || !src.startsWith('data:')){ resolve(''); return; }
+    const img=new Image();
+    img.onload=()=>{
+      const scale=Math.min(1, maxW/Math.max(img.width,img.height));
+      const canvas=document.createElement('canvas');
+      canvas.width=Math.round(img.width*scale);
+      canvas.height=Math.round(img.height*scale);
+      canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.onerror=()=>resolve('');
+    img.src=src;
+  });
+}
+
+async function saveOrder(){
+  try{
+  const nm=document.getElementById('name').value||'order';
+  const editKey=document.getElementById('orderForm').dataset.editKey||'';
+  const key=editKey||'sb_'+nm.replace(/\s+/g,'_')+'_'+Date.now();
+  document.getElementById('orderForm').dataset.editKey='';
+
+  // Compress photos before saving (max 600px, 60% quality)
+  const rawPhotos=[];
+  for(let i=0;i<5;i++){
+    const img=document.getElementById('pi'+i);
+    rawPhotos.push((img && img.src && img.src.startsWith('data:')) ? img.src : '');
+  }
+  const photos=await Promise.all(rawPhotos.map(src=>compressPhoto(src,600,0.6)));
+
+  const orderData={
+    name:nm,phone:document.getElementById('phone').value,
+    date:document.getElementById('edate').value,time:document.getElementById('ptime').value,
+    occasion:document.getElementById('occasion').value,
+    orderType:document.querySelector('input[name="otype"]:checked')?.value,
+    status: currentStatus,
+    size:[...document.querySelectorAll('input[name="size"]:checked')].map(i=>i.value),
+    layers:document.querySelector('input[name="layers"]:checked')?.value||'',
+    sizeNotes:document.getElementById('sizenotes').value,
+    servings:document.getElementById('servings').value,
+    shape:document.querySelector('.shp.sel')?.dataset.shape||'',
+    flavor:[...document.querySelectorAll('input[name="flavor"]:checked')].map(i=>i.value),
+    flavorOther:document.getElementById('flavorOther').value,
+    dietary:[...document.querySelectorAll('input[name="dietary"]:checked')].map(i=>i.value),
+    filling:[...document.querySelectorAll('input[name="filling"]:checked')].map(i=>i.value),
+    chocBrand:[...document.querySelectorAll('input[name="chocbrand"]:checked')].map(i=>i.value),
+    cakeMsg:document.getElementById('cakeMsg').value,
+    colors:document.getElementById('colors').value,
+    design:document.getElementById('design').value,
+    dessertFlavor:document.getElementById('dessertFlavor').value,
+    addons:[...document.querySelectorAll('input[name="addon"]:checked')].map(i=>i.value),
+    total:document.getElementById('pTotal').value,
+    zelleNote:document.getElementById('zelleNote').value,
+    cakeaddons:[...document.querySelectorAll('input[name="cakeaddon"]:checked')].map(i=>i.value),
+    cakeaddonNotes:document.getElementById('cakeaddonNotes').value,
+    notes:document.getElementById('notes').value,
+    photos:photos,
+    savedAt:new Date().toISOString()
+  };
+
+  try{
+    await saveOrderToCloud(key, orderData);
+    if(window._ordersCache) window._ordersCache[key] = orderData;
+  }catch(err){
+    console.error('Cloud save failed, using local:', err);
+    try{ localStorage.setItem(key, JSON.stringify(orderData)); }catch(e){}
+    toast('⚠️ Saved locally — check your connection');
+    setTimeout(()=>switchTab('dashboard'), 1000);
+    return;
+  }
+
+  toast('✅ Order saved!');
+  showSyncStatus('☁️ Synced', '#7aac88');
+  setTimeout(()=>switchTab('dashboard'), 800);
+  }catch(err){console.error('Save error:',err);toast('⚠️ Save failed — please try again');}
+}
+
+function newOrder(){
+  if(!confirm('Start a new order? This will clear the current form.'))return;
+  document.querySelectorAll('input[type="text"],input[type="tel"],input[type="date"],input[type="time"],textarea').forEach(el=>el.value='');
+  document.querySelectorAll('input[type="checkbox"]').forEach(cb=>cb.checked=false);
+  document.querySelectorAll('input[name="layers"]').forEach(r=>r.checked=false);
+  document.querySelectorAll('input[name="dietary"]').forEach(r=>r.checked=false);
+  document.querySelectorAll('input[name="chocbrand"]').forEach(r=>r.checked=false);
+  const chocBrandsEl=document.getElementById('nutellaBrands');
+  if(chocBrandsEl) chocBrandsEl.style.display='none';
+  document.getElementById('ot-cake').checked=true;
+  toggleSections();
+  document.querySelectorAll('.shp').forEach(s=>s.classList.remove('sel'));
+  ['pending','confirmed','cancelled'].forEach(id=>document.getElementById('st-'+id).className='sbtn');
+  document.getElementById('pBalance').textContent='$—';
+  buildPhotos();
+  window.scrollTo(0,0);
+}
+
+function saveAsPDF(){
+  const nm=document.getElementById('name').value||'Order';
+  const dt=document.getElementById('edate').value||'';
+  // Set the document title to the client name + date so PDF is named correctly
+  const prev=document.title;
+  document.title=nm+(dt?' - '+dt:'');
+  window.print();
+  setTimeout(()=>document.title=prev,1000);
+}
+// ── FIREBASE HELPERS ─────────────────────────────────────────────────────────
+// Get all orders - from cache (populated by real-time listener) or fallback
+async function getAllOrders(){
+  if(window._ordersCache) return window._ordersCache;
+  // Fallback: fetch from Firestore directly
+  if(window._fbGetDocs){
+    const snap = await window._fbGetDocs();
+    const orders = {};
+    snap.forEach(d=>{ orders[d.id] = d.data(); });
+    window._ordersCache = orders;
+    return orders;
+  }
+  // Ultimate fallback: localStorage
+  const orders = {};
+  Object.keys(localStorage).filter(k=>k.startsWith('sb_')&&k!=='sb_settings'&&k!=='sb_replies')
+    .forEach(k=>{ try{ orders[k]=JSON.parse(localStorage.getItem(k)); }catch(e){} });
+  return orders;
+}
+
+async function getOrder(id){
+  if(window._ordersCache && window._ordersCache[id]) return window._ordersCache[id];
+  if(window._fbGetDoc){ const d=await window._fbGetDoc(id); return d.exists()?d.data():null; }
+  try{ return JSON.parse(localStorage.getItem(id)); }catch(e){ return null; }
+}
+
+async function saveOrderToCloud(id, data){
+  if(window._fbSetDoc){ await window._fbSetDoc(id, data); return; }
+  localStorage.setItem(id, JSON.stringify(data));
+}
+
+async function deleteOrderFromCloud(id){
+  if(window._fbDeleteDoc){ await window._fbDeleteDoc(id); return; }
+  localStorage.removeItem(id);
+}
+
+// Show sync status
+function showSyncStatus(msg, color){
+  let el = document.getElementById('syncStatus');
+  if(!el){ el=document.createElement('div'); el.id='syncStatus'; el.style.cssText='position:fixed;top:80px;right:16px;padding:8px 14px;border-radius:22px;font-size:12px;font-weight:500;z-index:999;transition:opacity .5s;font-family:Jost,sans-serif;'; document.body.appendChild(el); }
+  el.textContent = msg;
+  el.style.background = color||'var(--tan)';
+  el.style.color = '#fff';
+  el.style.opacity = '1';
+  clearTimeout(el._t);
+  el._t = setTimeout(()=>el.style.opacity='0', 2500);
+}
+
+function toast(msg){
+  const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2600);
+}
+
+
+// ── TAB SWITCHING ─────────────────────────────────────────────────────────────
+let currentFilter = 'all';
+function switchTab(tab){
+  ['form','dashboard','calendar','replies','settings'].forEach(t=>{
+    const el=document.getElementById('tab-'+t);
+    if(el) el.classList.toggle('active', t===tab);
+  });
+  document.getElementById('formView').style.display     = tab==='form'      ? 'block' : 'none';
+  document.getElementById('dashView').style.display     = tab==='dashboard' ? 'block' : 'none';
+  document.getElementById('calView').style.display      = tab==='calendar'  ? 'block' : 'none';
+  document.getElementById('repliesView').style.display  = tab==='replies'   ? 'block' : 'none';
+  document.getElementById('settingsView').style.display = tab==='settings'  ? 'block' : 'none';
+  if(tab==='dashboard') renderOrders();
+  if(tab==='calendar')  renderCalendar();
+  if(tab==='settings')  loadSettings();
+  if(tab==='replies')   renderReplies();
+}
+
+// ── FILTER ───────────────────────────────────────────────────────────────────
+function filterOrders(f, el){
+  currentFilter = f;
+  document.querySelectorAll('.ftab').forEach(t=>t.classList.remove('on'));
+  el.classList.add('on');
+  renderOrders();
+}
+
+// ── RENDER ORDERS ─────────────────────────────────────────────────────────────
+async function renderOrders(){
+  const list = document.getElementById('ordersList');
+  if(!list) return;
+  list.innerHTML='<div class="no-orders-msg">Loading orders...</div>';
+  const search = (document.getElementById('orderSearch').value||'').toLowerCase();
+  const ordersMap = await getAllOrders();
+  const keys = Object.keys(ordersMap).sort((a,b)=>{
+    const da=(ordersMap[a].savedAt||''), db=(ordersMap[b].savedAt||'');
+    return db.localeCompare(da);
+  });
+  
+  // Stats
+  let revenue = 0; let upcoming = 0;
+  keys.forEach(k=>{
+    try{
+      const o = ordersMap[k];
+      const t = parseFloat((o.total||'').replace(/[^0-9.]/g,''))||0;
+      revenue += t;
+      if(o.date && new Date(o.date) >= new Date()) upcoming++;
+    }catch(e){}
+  });
+  // PENDING PAYMENTS
+  const unpaid=keys.filter(k=>{try{const o=ordersMap[k];return o&&(!o.zelleNote||o.zelleNote.trim()==='')&&o.status!=='cancelled'&&o.total&&o.total.trim()!=='';}catch(e){return false;}});
+  const banner=document.getElementById('pendingPaymentsBanner');
+  if(unpaid.length>0){
+    banner.style.display='block';
+    let unpaidTotal=0;
+    document.getElementById('pendingPaymentsList').innerHTML=unpaid.map(k=>{
+      try{
+        const o=ordersMap[k];
+        const t=parseFloat((o.total||'').replace(/[^0-9.]/g,''))||0;
+        unpaidTotal+=t;
+        return '<div style="display:flex;align-items:center;justify-content:space-between;background:#fff8ec;border:1px solid #e8c98a;border-radius:9px;padding:9px 12px;"><div><div style="font-size:14px;font-weight:600;color:#3d2b1f;">'+(o.name||'Unnamed')+'</div><div style="font-size:12px;color:#9a7060;">'+(o.date||'No date')+(o.occasion?' · '+o.occasion:'')+'</div></div><div style="text-align:right;"><div style="font-size:14px;font-weight:600;color:#d4a430;">'+(o.total||'')+'</div><button onclick="editOrder(\''+k+'\')" style="font-size:11px;background:none;border:none;color:#9a7060;cursor:pointer;text-decoration:underline;padding:0;margin-top:2px;">Mark paid →</button></div></div>';
+      }catch(e){return '';}
+    }).join('');
+    document.getElementById('pendingPaymentsTotal').textContent='$'+unpaidTotal.toFixed(2)+' outstanding';
+  } else {
+    banner.style.display='none';
+  }
+
+  document.getElementById('statTotal').textContent = keys.length;
+  document.getElementById('statUpcoming').textContent = upcoming;
+  document.getElementById('statRevenue').textContent = '$'+(revenue).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0});
+
+  if(keys.length===0){
+    list.innerHTML='<div class="no-orders-msg">No saved orders yet!<br>Tap <strong>📋 New Order</strong> to get started.</div>';
+    return;
+  }
+
+  const filtered = keys.filter(k=>{
+    try{
+      const o=ordersMap[k];
+      const matchSearch = !search || (o.name||'').toLowerCase().includes(search);
+      const matchFilter = currentFilter==='all' || (o.status||'')=== currentFilter;
+      return matchSearch && matchFilter;
+    }catch(e){return false;}
+  });
+
+  if(filtered.length===0){
+    list.innerHTML='<div class="no-orders-msg">No orders match your search.</div>';
+    return;
+  }
+
+  // ── REVENUE CHART ──────────────────────────────────────────────────────────
+  const yearSel = document.getElementById('revenueYear');
+  const currentYear = new Date().getFullYear();
+  if(yearSel.options.length === 0){
+    for(let y=currentYear; y>=currentYear-2; y--){
+      const opt=document.createElement('option');
+      opt.value=y; opt.textContent=y;
+      yearSel.appendChild(opt);
+    }
+  }
+  const selYear = parseInt(yearSel.value) || currentYear;
+  const monthNames=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const monthRevenue = new Array(12).fill(0);
+  const monthOrders  = new Array(12).fill(0);
+
+  keys.forEach(k=>{
+    try{
+      const o=ordersMap[k];
+      if(o&&o.date){
+        const d=new Date(o.date+'T12:00:00');
+        if(d.getFullYear()===selYear){
+          const m=d.getMonth();
+          const t=parseFloat((o.total||'').replace(/[^0-9.]/g,''))||0;
+          monthRevenue[m]+=t;
+          monthOrders[m]++;
+        }
+      }
+    }catch(e){}
+  });
+
+  const maxRev = Math.max(...monthRevenue, 1);
+  const chart  = document.getElementById('revenueChart');
+  const labels = document.getElementById('revenueLabels');
+  const summary= document.getElementById('revenueSummary');
+  const today  = new Date();
+
+  chart.innerHTML = monthRevenue.map((rev,i)=>{
+    const h = Math.max((rev/maxRev)*76, rev>0?6:0);
+    const isNow = i===today.getMonth() && selYear===today.getFullYear();
+    return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:2px;">
+      ${rev>0?`<div style="font-size:9px;color:var(--mid);font-weight:500;">$${rev>=1000?(rev/1000).toFixed(1)+'k':Math.round(rev)}</div>`:''}
+      <div title="${monthNames[i]}: $${rev.toFixed(2)}" style="width:100%;border-radius:4px 4px 0 0;background:${isNow?'var(--tan)':'var(--blush)'};border:1px solid ${isNow?'var(--tan-dk)':'var(--border)'};height:${h}px;min-height:${rev>0?'4px':'0'};transition:height .3s;cursor:pointer;"></div>
+    </div>`;
+  }).join('');
+
+  labels.innerHTML = monthNames.map((m,i)=>{
+    const isNow = i===today.getMonth() && selYear===today.getFullYear();
+    return `<div style="flex:1;text-align:center;font-size:9px;font-weight:${isNow?'700':'400'};color:${isNow?'var(--tan)':'var(--mid)'};">${m}</div>`;
+  }).join('');
+
+  const totalYearRev = monthRevenue.reduce((a,b)=>a+b,0);
+  const totalYearOrd = monthOrders.reduce((a,b)=>a+b,0);
+  const bestMonthIdx = monthRevenue.indexOf(Math.max(...monthRevenue));
+  const avgOrder     = totalYearOrd ? (totalYearRev/totalYearOrd) : 0;
+
+  summary.innerHTML = `
+    <div style="flex:1;min-width:120px;"><div style="font-size:11px;color:var(--mid);font-weight:500;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:3px;">Year Total</div><div style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:600;color:var(--tan);">$${totalYearRev.toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0})}</div></div>
+    <div style="flex:1;min-width:120px;"><div style="font-size:11px;color:var(--mid);font-weight:500;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:3px;">Best Month</div><div style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:600;color:var(--tan);">${totalYearRev>0?monthNames[bestMonthIdx]:'—'}</div></div>
+    <div style="flex:1;min-width:120px;"><div style="font-size:11px;color:var(--mid);font-weight:500;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:3px;">Avg Order</div><div style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:600;color:var(--tan);">${avgOrder?'$'+Math.round(avgOrder):'—'}</div></div>
+  `;
+  // ── END REVENUE CHART ───────────────────────────────────────────────────────
+
+  list.innerHTML = filtered.map(key=>{
+    try{
+      const o=ordersMap[key];
+      const saved=o.savedAt?new Date(o.savedAt).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'';
+      const status=o.status||'';
+      const badgeClass=status==='confirmed'?'badge-confirmed':status==='pending'?'badge-pending':status==='cancelled'?'badge-cancelled':'badge-none';
+      const badgeLabel=status?status.charAt(0).toUpperCase()+status.slice(1):'New';
+      const meta=[];
+      if(o.date) meta.push('📅 '+o.date);
+      if(o.occasion) meta.push(o.occasion);
+      if(o.orderType) meta.push(o.orderType);
+      return `<div class="order-item">
+        <div class="oi-top">
+          <div class="oi-name">${o.name||'Unnamed Order'}</div>
+          <span class="oi-badge ${badgeClass}">${badgeLabel}</span>
+        </div>
+        <div class="oi-meta">${meta.join(' · ')}</div>
+        ${o.total?'<div class="oi-total">'+o.total+'</div>':''}
+        <div class="oi-actions">
+          <button class="oi-btn oi-view" onclick="editOrder('${key}')">✏️ Edit</button>
+          <button class="oi-btn oi-repeat" onclick="repeatOrder('${key}')">🔁 Repeat</button>
+          <button class="oi-btn oi-history" onclick="viewClientHistory(this.dataset.name)" data-name="${o.name||''}">👤 History</button>
+          <button class="oi-btn oi-complete" onclick="markComplete('${key}')">✅ Mark Complete</button>
+          <button class="oi-btn oi-del" onclick="delOrder('${key}')">🗑 Delete</button>
+        </div>
+        <div style="font-size:11px;color:var(--mid);margin-top:8px;">Saved ${saved}</div>
+      </div>`;
+    }catch(e){return '';}
+  }).join('');
+}
+
+
+async function editOrder(key){
+  try{
+    const o=await getOrder(key);
+    if(!o){ toast('Order not found.'); return; }
+    // Switch to form tab
+    switchTab('form');
+    // Store the key so we can overwrite on save
+    document.getElementById('orderForm').dataset.editKey = key;
+
+    // Populate fields
+    document.getElementById('name').value = o.name||'';
+    document.getElementById('phone').value = o.phone||'';
+    document.getElementById('edate').value = o.date||'';
+    document.getElementById('ptime').value = o.time||'';
+    document.getElementById('occasion').value = o.occasion||'';
+    document.getElementById('sizenotes').value = o.sizeNotes||'';
+    document.querySelectorAll('input[name="layers"]').forEach(r=>{ r.checked = r.value === (o.layers||''); });
+    document.getElementById('servings').value = o.servings||'';
+    document.getElementById('flavorOther').value = o.flavorOther||'';
+    document.getElementById('cakeMsg').value = o.cakeMsg||'';
+    document.getElementById('colors').value = o.colors||'';
+    document.getElementById('design').value = o.design||'';
+    document.getElementById('dessertFlavor').value = o.dessertFlavor||'';
+    document.getElementById('pTotal').value = o.total||'';
+    document.getElementById('zelleNote').value = o.zelleNote||'';
+    try{document.getElementById('cakeaddonNotes').value = o.cakeaddonNotes||'';}catch(e){}
+    try{document.querySelectorAll('input[name="cakeaddon"]').forEach(cb=>{
+      cb.checked=(o.cakeaddons||[]).includes(cb.value);
+    });}catch(e){}
+    document.getElementById('notes').value = o.notes||'';
+    syncBalance();
+
+    // Order type
+    if(o.orderType){
+      const r=document.querySelector(`input[name="otype"][value="${o.orderType}"]`);
+      if(r){r.checked=true;toggleSections();}
+    }
+
+    // Status
+    if(o.status) setStatus(o.status);
+
+    // Shape
+    document.querySelectorAll('.shp').forEach(s=>{
+      s.classList.toggle('sel', s.dataset.shape===o.shape);
+    });
+
+    // Checkboxes
+    ['size','flavor','filling','addon','dietary'].forEach(name=>{
+      document.querySelectorAll(`input[name="${name}"]`).forEach(cb=>{
+        cb.checked = (o[name]||[]).includes(cb.value);
+      });
+    });
+
+    // Restore photos
+    if(o.photos && o.photos.length){
+      o.photos.forEach((src,i)=>{
+        if(src){
+          const img=document.getElementById('pi'+i);
+          const slot=document.getElementById('ps'+i);
+          if(img && slot){ img.src=src; slot.classList.add('has-img'); }
+        }
+      });
+    }
+    window.scrollTo(0,0);
+    toast('✏️ Editing order — tap Save when done!');
+  }catch(e){ toast('Could not load order.'); }
+}
+
+
+
+// QUICK REPLIES
+let editingReplyIdx = -1;
+
+function getDefaultReplies(){
+  return [
+    {label:'Order Confirmed', message:'Hi! Your order has been confirmed for [DATE] at [TIME]. We are so excited to create something beautiful for you! Please remember to send your Zelle payment to complete your booking. Thank you for choosing Simas Baking! 🎂'},
+    {label:'Order Ready for Pickup', message:'Hi! Your cake is ready and waiting for you! Please come by at your scheduled pickup time. We cannot wait for you to see it! 🎂🩷'},
+    {label:'Payment Reminder', message:'Hi! Just a friendly reminder that your balance is due. Please send your Zelle payment at your earliest convenience so we can confirm your order. Thank you! 🩷'},
+    {label:'Thank You', message:'Thank you so much for your order! It was such a joy to create something special for you. We hope everyone loves it! Please tag us if you share any photos 🎂🩷 @simasbaking'},
+    {label:'Follow Up', message:'Hi! Just checking in — how did everything go? We hope your celebration was amazing and that everyone enjoyed the cake! 🎂'},
+    {label:'Inquiry Response', message:'Hi! Thank you so much for reaching out to Simas Baking! I would love to create something special for you. Could you share your event date, cake size, and any design ideas you have in mind? 🎂🩷'},
+    {label:'Fully Booked', message:'Hi! Thank you so much for thinking of Simas Baking! Unfortunately I am fully booked for that date. I would love to work with you on a future order — please feel free to reach out for other dates! 🩷'},
+  ];
+}
+
+function getReplies(){
+  try{
+    const saved=JSON.parse(localStorage.getItem('sb_replies')||'null');
+    return saved || getDefaultReplies();
+  }catch(e){return getDefaultReplies();}
+}
+
+function saveReplies(replies){
+  localStorage.setItem('sb_replies', JSON.stringify(replies));
+}
+
+function renderReplies(){
+  const replies=getReplies();
+  const list=document.getElementById('repliesList');
+  list.innerHTML='';
+  replies.forEach((r,i)=>{
+    const div=document.createElement('div');
+    div.style.cssText='background:var(--bg);border:1.5px solid var(--border);border-radius:11px;padding:13px 14px;';
+    div.innerHTML=`
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+        <div style="font-size:13px;font-weight:600;color:var(--dark);">${r.label}</div>
+        <div style="display:flex;gap:6px;">
+          <button onclick="copyReply(${i})" style="background:var(--blush);border:none;border-radius:8px;padding:5px 10px;font-size:12px;color:var(--tan-dk);cursor:pointer;font-family:'Jost',sans-serif;font-weight:500;">📋 Copy</button>
+          <button onclick="editReplyItem(${i})" style="background:var(--bg);border:1.5px solid var(--border);border-radius:8px;padding:5px 10px;font-size:12px;color:var(--mid);cursor:pointer;font-family:'Jost',sans-serif;">✏️</button>
+          <button onclick="deleteReply(${i})" style="background:#fde8e8;border:none;border-radius:8px;padding:5px 10px;font-size:12px;color:#c47070;cursor:pointer;font-family:'Jost',sans-serif;">🗑</button>
+        </div>
+      </div>
+      <div style="font-size:13px;color:var(--mid);line-height:1.6;white-space:pre-wrap;">${r.message}</div>`;
+    list.appendChild(div);
+  });
+}
+
+function copyReply(i){
+  const replies=getReplies();
+  const msg=replies[i].message;
+  navigator.clipboard.writeText(msg).then(()=>{
+    toast('📋 Copied to clipboard!');
+  }).catch(()=>{
+    // Fallback
+    const ta=document.createElement('textarea');
+    ta.value=msg;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    toast('📋 Copied!');
+  });
+}
+
+function addReply(){
+  editingReplyIdx=-1;
+  document.getElementById('replyLabel').value='';
+  document.getElementById('replyMessage').value='';
+  document.getElementById('replyEditor').style.display='block';
+  document.getElementById('replyEditor').scrollIntoView({behavior:'smooth'});
+}
+
+function editReplyItem(i){
+  const replies=getReplies();
+  editingReplyIdx=i;
+  document.getElementById('replyLabel').value=replies[i].label;
+  document.getElementById('replyMessage').value=replies[i].message;
+  document.getElementById('replyEditor').style.display='block';
+  document.getElementById('replyEditor').scrollIntoView({behavior:'smooth'});
+}
+
+function saveReply(){
+  const label=document.getElementById('replyLabel').value.trim();
+  const message=document.getElementById('replyMessage').value.trim();
+  if(!label||!message){toast('Please fill in both fields!');return;}
+  const replies=getReplies();
+  if(editingReplyIdx>=0){
+    replies[editingReplyIdx]={label,message};
+  } else {
+    replies.push({label,message});
+  }
+  saveReplies(replies);
+  cancelReply();
+  renderReplies();
+  toast('✅ Reply saved!');
+}
+
+function cancelReply(){
+  document.getElementById('replyEditor').style.display='none';
+  editingReplyIdx=-1;
+}
+
+function deleteReply(i){
+  if(!confirm('Delete this reply?'))return;
+  const replies=getReplies();
+  replies.splice(i,1);
+  saveReplies(replies);
+  renderReplies();
+}
+// CLIENT HISTORY
+function viewClientHistory(name){
+  if(!name){ toast('No client name found.'); return; }
+  const allKeys = Object.keys(localStorage).filter(k=>k.startsWith('sb_') && k!=='sb_settings' && k!=='sb_replies');
+  const clientOrders = allKeys.filter(k=>{
+    try{
+      const o=JSON.parse(localStorage.getItem(k));
+      return (o.name||'').toLowerCase().trim() === name.toLowerCase().trim();
+    }catch(e){return false;}
+  }).sort().reverse();
+
+  document.getElementById('clientModalTitle').textContent = '👤 ' + name;
+
+  if(clientOrders.length === 0){
+    document.getElementById('clientModalBody').innerHTML = '<div style="text-align:center;padding:30px;color:var(--mid);">No orders found for this client.</div>';
+    document.getElementById('clientModal').classList.add('open');
+    return;
+  }
+
+  // Stats
+  let totalSpent = 0;
+  clientOrders.forEach(k=>{
+    try{
+      const o=ordersMap[k];
+      totalSpent += parseFloat((o.total||'').replace(/[^0-9.]/g,''))||0;
+    }catch(e){}
+  });
+
+  const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  let html = '';
+
+  // Client summary card
+  html += `<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+    <div style="flex:1;min-width:100px;background:var(--blush);border-radius:12px;padding:14px;text-align:center;">
+      <div style="font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:600;color:var(--tan);">${clientOrders.length}</div>
+      <div style="font-size:11px;color:var(--mid);font-weight:500;text-transform:uppercase;letter-spacing:0.5px;">Total Orders</div>
+    </div>
+    <div style="flex:1;min-width:100px;background:var(--blush);border-radius:12px;padding:14px;text-align:center;">
+      <div style="font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:600;color:var(--tan);">$${totalSpent.toFixed(0)}</div>
+      <div style="font-size:11px;color:var(--mid);font-weight:500;text-transform:uppercase;letter-spacing:0.5px;">Total Spent</div>
+    </div>
+    <div style="flex:1;min-width:100px;background:var(--blush);border-radius:12px;padding:14px;text-align:center;">
+      <div style="font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:600;color:var(--tan);">$${clientOrders.length ? Math.round(totalSpent/clientOrders.length) : 0}</div>
+      <div style="font-size:11px;color:var(--mid);font-weight:500;text-transform:uppercase;letter-spacing:0.5px;">Avg Order</div>
+    </div>
+  </div>`;
+
+  // Order history list
+  html += `<div style="font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--mid);margin-bottom:10px;">Order History</div>`;
+  html += `<div style="display:flex;flex-direction:column;gap:9px;">`;
+
+  clientOrders.forEach(k=>{
+    try{
+      const o=ordersMap[k];
+      const st=o.status||'new';
+      const badgeClass=st==='confirmed'?'badge-confirmed':st==='pending'?'badge-pending':st==='cancelled'?'badge-cancelled':'badge-none';
+      const d=o.date?new Date(o.date+'T12:00:00'):null;
+      const dateStr=d?months[d.getMonth()]+' '+d.getDate()+', '+d.getFullYear():'No date';
+      const flavors=(o.flavor||[]).join(', ');
+      const sizes=(o.size||[]).join(', ');
+      html+=`<div style="background:var(--bg);border:1.5px solid var(--border);border-radius:11px;padding:12px 14px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">
+          <div style="font-size:13px;font-weight:600;color:var(--dark);">📅 ${dateStr}</div>
+          <span class="oi-badge ${badgeClass}">${st}</span>
+        </div>
+        <div style="font-size:12px;color:var(--mid);line-height:1.7;">
+          ${sizes?'📐 '+sizes+'<br>':''}
+          ${flavors?'✨ '+flavors+'<br>':''}
+          ${o.occasion?'🎉 '+o.occasion+'<br>':''}
+          ${o.cakeMsg?'📝 "'+o.cakeMsg+'"<br>':''}
+        </div>
+        ${o.total?'<div style="font-size:13px;font-weight:600;color:var(--tan);margin-top:5px;">'+o.total+'</div>':''}
+        <div style="display:flex;gap:7px;margin-top:8px;">
+          <button class="oi-btn oi-view" onclick="editOrder('${k}');document.getElementById('clientModal').classList.remove('open')">✏️ Edit</button>
+          <button class="oi-btn oi-repeat" onclick="repeatOrder('${k}');document.getElementById('clientModal').classList.remove('open')">🔁 Repeat</button>
+        </div>
+      </div>`;
+    }catch(e){}
+  });
+
+  html += '</div>';
+  document.getElementById('clientModalBody').innerHTML = html;
+  document.getElementById('clientModal').classList.add('open');
+}
+async function repeatOrder(key){
+  try{
+    const o=await getOrder(key);
+    if(!o){ toast('Order not found.'); return; }
+    // Clear the edit key so this saves as a NEW order
+    document.getElementById('orderForm').dataset.editKey = '';
+    
+    // Switch to form
+    switchTab('form');
+
+    // Populate all fields same as editOrder but clear date/time for user to set new ones
+    document.getElementById('name').value = o.name||'';
+    document.getElementById('phone').value = o.phone||'';
+    document.getElementById('edate').value = ''; // clear date — must set new one
+    document.getElementById('ptime').value = ''; // clear time — must set new one
+    document.getElementById('occasion').value = o.occasion||'';
+    document.getElementById('sizenotes').value = o.sizeNotes||'';
+    document.getElementById('servings').value = o.servings||'';
+    document.querySelectorAll('input[name="layers"]').forEach(r=>{ r.checked = r.value === (o.layers||''); });
+    document.getElementById('flavorOther').value = o.flavorOther||'';
+    document.getElementById('cakeMsg').value = o.cakeMsg||'';
+    document.getElementById('colors').value = o.colors||'';
+    document.getElementById('design').value = o.design||'';
+    document.getElementById('dessertFlavor').value = o.dessertFlavor||'';
+    document.getElementById('pTotal').value = o.total||'';
+    document.getElementById('zelleNote').value = '';
+    try{document.getElementById('cakeaddonNotes').value = o.cakeaddonNotes||'';}catch(e){}
+    document.getElementById('notes').value = '';
+    syncBalance();
+
+    // Order type
+    if(o.orderType){
+      const r=document.querySelector(`input[name="otype"][value="${o.orderType}"]`);
+      if(r){r.checked=true;toggleSections();}
+    }
+
+    // Status — reset to pending for new order
+    setStatus('pending');
+  currentStatus = 'pending';
+
+    // Shape
+    document.querySelectorAll('.shp').forEach(s=>{
+      s.classList.toggle('sel', s.dataset.shape===o.shape);
+    });
+
+    // Checkboxes
+    ['size','flavor','filling','addon'].forEach(name=>{
+      document.querySelectorAll(`input[name="${name}"]`).forEach(cb=>{
+        cb.checked=(o[name]||[]).includes(cb.value);
+      });
+    });
+    // Restore choc brands
+    document.querySelectorAll('input[name="chocbrand"]').forEach(cb=>{
+      cb.checked=(o.chocBrand||[]).includes(cb.value);
+    });
+    const chocBrandsEl=document.getElementById('nutellaBrands');
+    if(chocBrandsEl) chocBrandsEl.style.display=(o.chocBrand&&o.chocBrand.length)?'block':'none';
+    try{document.querySelectorAll('input[name="cakeaddon"]').forEach(cb=>{
+      cb.checked=(o.cakeaddons||[]).includes(cb.value);
+    });}catch(e){}
+
+    // Clear photos — fresh order
+    buildPhotos();
+
+    window.scrollTo(0,0);
+    toast('🔁 Order copied! Update the date and save as new.');
+  }catch(e){ toast('Could not repeat order.'); }
+}
+async function markComplete(key){
+  try{
+    const o=await getOrder(key);
+    if(!o) return;
+    o.status='confirmed';
+    await saveOrderToCloud(key, o);
+    if(window._ordersCache) window._ordersCache[key]=o;
+    renderOrders();
+    toast('✅ Marked as complete!');
+  }catch(e){ toast('Error updating order.'); }
+}
+
+async function delOrder(key){
+  if(!confirm('Delete this order?'))return;
+  await deleteOrderFromCloud(key);
+  if(window._ordersCache) delete window._ordersCache[key];
+  renderOrders();
+  toast('🗑 Order deleted');
+}
+
+function openDrawer(){
+  const list=document.getElementById('orderList');
+  list.innerHTML='';
+  const ordersMap = window._ordersCache || {};
+  const keys=Object.keys(ordersMap).sort((a,b)=>((ordersMap[b].savedAt||'').localeCompare(ordersMap[a].savedAt||'')));
+  if(keys.length===0){
+    list.innerHTML='<div class="no-orders">No saved orders yet.<br>Fill out a form and tap 💾 Save!</div>';
+  } else {
+    keys.forEach(key=>{
+      try{
+        const o=ordersMap[key];
+        const saved=o.savedAt?new Date(o.savedAt).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'';
+        const meta=[];
+        if(o.orderType) meta.push(o.orderType);
+        if(o.date) meta.push('Event: '+o.date);
+        if(o.occasion) meta.push(o.occasion);
+        const div=document.createElement('div');
+        div.className='order-card';
+        div.innerHTML=`
+          <div class="oc-top">
+            <div class="oc-name">${o.name||'Unnamed Order'}</div>
+            <div class="oc-date">${saved}</div>
+          </div>
+          <div class="oc-meta">${meta.join(' · ')}</div>
+          ${o.total?'<div class="oc-total">Total: '+o.total+'</div>':''}
+          <div class="oc-actions">
+            <button class="oc-btn oc-del" onclick="deleteOrder(event,'${key}')">🗑 Delete</button>
+          </div>`;
+        list.appendChild(div);
+      }catch(e){}
+    });
+  }
+  document.getElementById('drawerOverlay').classList.add('open');
+}
+
+function closeDrawer(){document.getElementById('drawerOverlay').classList.remove('open');}
+function closeDrawerOnBg(e){if(e.target===document.getElementById('drawerOverlay'))closeDrawer();}
+
+async function deleteOrder(e,key){
+  e.stopPropagation();
+  if(!confirm('Delete this order?'))return;
+  await deleteOrderFromCloud(key);
+  if(window._ordersCache) delete window._ordersCache[key];
+  openDrawer();
+}
+
+// ── CALENDAR ─────────────────────────────────────────────────────────────────
+let calYear = new Date().getFullYear();
+let calMonth = new Date().getMonth();
+
+function changeMonth(dir){
+  calMonth += dir;
+  if(calMonth > 11){ calMonth = 0; calYear++; }
+  if(calMonth < 0){  calMonth = 11; calYear--; }
+  renderCalendar();
+}
+
+async function renderCalendar(){
+  const months=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  document.getElementById('calMonthLabel').textContent = months[calMonth] + ' ' + calYear;
+
+  // Gather all orders keyed by date string
+  const ordersByDate = {};
+  const ordersMap = await getAllOrders();
+  const keys = Object.keys(ordersMap);
+  keys.forEach(k=>{
+    try{
+      const o = ordersMap[k];
+      if(o.date){
+        if(!ordersByDate[o.date]) ordersByDate[o.date] = [];
+        ordersByDate[o.date].push({key:k, name:o.name||'Order', status:(o.status||'').toLowerCase().trim()||'none'});
+      }
+    }catch(e){}
+  });
+  console.log('ordersByDate:', JSON.stringify(ordersByDate));
+
+  const today = new Date();
+  const firstDay = new Date(calYear, calMonth, 1).getDay();
+  const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
+  const daysInPrev  = new Date(calYear, calMonth, 0).getDate();
+
+  const grid = document.getElementById('calGrid');
+  grid.innerHTML = '';
+
+  // Leading days from previous month
+  for(let i = firstDay - 1; i >= 0; i--){
+    const d = document.createElement('div');
+    d.className = 'cal-day other-month';
+    d.innerHTML = `<div class="cal-day-num">${daysInPrev - i}</div>`;
+    grid.appendChild(d);
+  }
+
+  // Days of current month
+  for(let day = 1; day <= daysInMonth; day++){
+    const dateStr = calYear + '-' + String(calMonth+1).padStart(2,'0') + '-' + String(day).padStart(2,'0');
+    if(day===27) console.log('Looking for date:', dateStr, 'Found:', ordersByDate[dateStr]);
+    const isToday = today.getFullYear()===calYear && today.getMonth()===calMonth && today.getDate()===day;
+    const orders = ordersByDate[dateStr] || [];
+
+    const d = document.createElement('div');
+    d.className = 'cal-day' + (isToday?' today':'');
+    d.onclick = ()=> showCalDay(dateStr, orders);
+
+    let inner = `<div class="cal-day-num">${day}</div>`;
+    orders.slice(0,2).forEach(o=>{
+      const dotStatus = ['confirmed','pending','cancelled'].includes((o.status||'').toLowerCase().trim()) ? (o.status||'').toLowerCase().trim() : 'none';
+      inner += `<span class="cal-dot ${dotStatus}">${o.name.split(' ')[0]}</span>`;
+    });
+    if(orders.length > 2){
+      inner += `<span class="cal-more">+${orders.length-2} more</span>`;
+    }
+    d.innerHTML = inner;
+    grid.appendChild(d);
+  }
+
+  // Trailing days to fill grid
+  const total = firstDay + daysInMonth;
+  const trailing = total % 7 === 0 ? 0 : 7 - (total % 7);
+  for(let i = 1; i <= trailing; i++){
+    const d = document.createElement('div');
+    d.className = 'cal-day other-month';
+    d.innerHTML = `<div class="cal-day-num">${i}</div>`;
+    grid.appendChild(d);
+  }
+
+  // Hide day detail when month changes
+  document.getElementById('calDayDetail').style.display = 'none';
+}
+
+function showCalDay(dateStr, orders){
+  const detail = document.getElementById('calDayDetail');
+  if(!orders.length){ detail.style.display='none'; return; }
+
+  const d = new Date(dateStr+'T12:00:00');
+  const label = d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+
+  let html = `<div class="day-detail-card"><div class="day-detail-title">📅 ${label}</div>`;
+  orders.forEach(o=>{
+    try{
+      const order = (window._ordersCache||{})[o.key] || {};
+      const st = order.status||'none';
+      const badgeClass = st==='confirmed'?'badge-confirmed':st==='pending'?'badge-pending':st==='cancelled'?'badge-cancelled':'badge-none';
+      html += `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);">
+        <div>
+          <div style="font-size:14px;font-weight:600;color:var(--dark);">${order.name||'Unnamed'}</div>
+          <div style="font-size:12px;color:var(--mid);margin-top:2px;">${order.occasion||''} ${order.size?(order.size.join?order.size.join(', '):order.size):''}</div>
+          ${order.total?'<div style="font-size:13px;font-weight:600;color:var(--tan);margin-top:2px;">'+order.total+'</div>':''}
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+          <span class="oi-badge ${badgeClass}">${st}</span>
+          <button class="oi-btn oi-view" onclick="editOrder('${o.key}')">✏️ Edit</button>
+        </div>
+      </div>`;
+    }catch(e){}
+  });
+  html += '</div>';
+  detail.innerHTML = html;
+  detail.style.display = 'block';
+  detail.scrollIntoView({behavior:'smooth'});
+}
+</script>
+
+
+<!-- CALENDAR VIEW -->
+<div id="calView" style="display:none;max-width:760px;margin:0 auto;padding:22px 16px 0;">
+
+  <!-- Month nav -->
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+    <button onclick="changeMonth(-1)" style="background:var(--blush);border:1.5px solid var(--border);border-radius:22px;padding:9px 18px;font-family:'Jost',sans-serif;font-size:14px;font-weight:500;color:var(--tan-dk);cursor:pointer;">‹ Prev</button>
+    <div id="calMonthLabel" style="font-family:'Cormorant Garamond',serif;font-size:22px;font-style:italic;color:var(--tan);font-weight:600;"></div>
+    <button onclick="changeMonth(1)"  style="background:var(--blush);border:1.5px solid var(--border);border-radius:22px;padding:9px 18px;font-family:'Jost',sans-serif;font-size:14px;font-weight:500;color:var(--tan-dk);cursor:pointer;">Next ›</button>
+  </div>
+
+  <!-- Day headers -->
+  <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:4px;">
+    <div style="text-align:center;font-size:11px;font-weight:600;color:var(--mid);letter-spacing:0.5px;padding:4px 0;">SUN</div>
+    <div style="text-align:center;font-size:11px;font-weight:600;color:var(--mid);letter-spacing:0.5px;padding:4px 0;">MON</div>
+    <div style="text-align:center;font-size:11px;font-weight:600;color:var(--mid);letter-spacing:0.5px;padding:4px 0;">TUE</div>
+    <div style="text-align:center;font-size:11px;font-weight:600;color:var(--mid);letter-spacing:0.5px;padding:4px 0;">WED</div>
+    <div style="text-align:center;font-size:11px;font-weight:600;color:var(--mid);letter-spacing:0.5px;padding:4px 0;">THU</div>
+    <div style="text-align:center;font-size:11px;font-weight:600;color:var(--mid);letter-spacing:0.5px;padding:4px 0;">FRI</div>
+    <div style="text-align:center;font-size:11px;font-weight:600;color:var(--mid);letter-spacing:0.5px;padding:4px 0;">SAT</div>
+  </div>
+
+  <!-- Calendar grid -->
+  <div id="calGrid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;"></div>
+
+  <!-- Legend -->
+  <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:16px;padding:14px 16px;background:var(--card);border:1.5px solid var(--border);border-radius:12px;">
+    <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--mid);"><div style="width:12px;height:12px;border-radius:3px;background:#7aac88;"></div>Confirmed</div>
+    <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--mid);"><div style="width:12px;height:12px;border-radius:3px;background:#d4a430;"></div>Pending</div>
+    <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--mid);"><div style="width:12px;height:12px;border-radius:3px;background:#c47070;"></div>Cancelled</div>
+    <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--mid);"><div style="width:12px;height:12px;border-radius:3px;background:var(--tan);"></div>New</div>
+  </div>
+
+  <!-- Day detail panel -->
+  <div id="calDayDetail" style="display:none;margin-top:14px;"></div>
+</div>
+
+
+<!-- SETTINGS VIEW -->
+<div id="settingsView" style="display:none;max-width:760px;margin:0 auto;padding:22px 16px 0;">
+
+  <!-- Business Info -->
+  <div class="card">
+    <div class="stitle">Your Business Info</div>
+    <div class="row">
+      <div class="field"><label class="lbl">Business Name</label><input type="text" id="settingBizName" placeholder="Simas Baking"></div>
+      <div class="field"><label class="lbl">Gmail Address</label><input type="email" id="settingEmail" placeholder="yourbakery@gmail.com"></div>
+    </div>
+    <div class="row">
+      <div class="field"><label class="lbl">WhatsApp Number</label><input type="tel" id="settingWhatsApp" placeholder="15615551234"></div>
+      <div class="field"><label class="lbl">Website</label><input type="text" id="settingWebsite" placeholder="simasbaking.com"></div>
+    </div>
+    <div class="row">
+      <div class="field full"><label class="lbl">Closing Message to Client</label>
+        <textarea id="settingClosing" placeholder="Thank you so much for your order! We cannot wait to create something special for you. 🎂" style="min-height:80px;"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- Baking Schedule Builder -->
+  <div class="card">
+    <div class="stitle">⏰ My Baking Schedule</div>
+    <div style="font-size:13px;color:var(--mid);margin-bottom:14px;line-height:1.6;">
+      Set up your personal baking timeline. Each step will show the real date automatically based on your order's event date.
+    </div>
+    <div id="scheduleSteps" style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px;"></div>
+    <button onclick="addScheduleStep()" style="background:var(--blush);border:1.5px solid var(--border);border-radius:22px;padding:10px 20px;font-family:'Jost',sans-serif;font-size:14px;font-weight:500;color:var(--tan-dk);cursor:pointer;width:100%;">+ Add Step</button>
+  </div>
+
+  <div style="text-align:center;padding-bottom:10px;">
+    <button onclick="saveSettings()" style="background:var(--tan);color:#fff;border:none;border-radius:22px;padding:13px 36px;font-family:'Jost',sans-serif;font-size:15px;font-weight:500;cursor:pointer;">💾 Save Settings</button>
+  </div>
+</div>
+
+<!-- BAKING SCHEDULE MODAL -->
+<div class="modal-overlay" id="scheduleModal">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-title">⏰ Baking Schedule</div>
+      <button class="modal-close" onclick="document.getElementById('scheduleModal').classList.remove('open')">✕</button>
+    </div>
+    <div class="modal-body" id="scheduleModalBody"></div>
+  </div>
+</div>
+
+
+<!-- QUICK REPLIES VIEW -->
+<div id="repliesView" style="display:none;max-width:760px;margin:0 auto;padding:22px 16px 0;">
+
+  <div class="card">
+    <div class="stitle">💬 Quick Reply Templates</div>
+    <div style="font-size:13px;color:var(--mid);margin-bottom:14px;line-height:1.6;">Tap any reply to copy it instantly. Edit or add your own below!</div>
+    <div id="repliesList" style="display:flex;flex-direction:column;gap:9px;margin-bottom:16px;"></div>
+    <button onclick="addReply()" style="background:var(--blush);border:1.5px solid var(--border);border-radius:22px;padding:10px 20px;font-family:'Jost',sans-serif;font-size:14px;font-weight:500;color:var(--tan-dk);cursor:pointer;width:100%;">+ Add New Reply</button>
+  </div>
+
+  <!-- Reply Editor -->
+  <div class="card" id="replyEditor" style="display:none;">
+    <div class="stitle">Edit Reply</div>
+    <div class="row">
+      <div class="field full">
+        <label class="lbl">Label (short name)</label>
+        <input type="text" id="replyLabel" placeholder="e.g. Order Ready, Follow Up, Payment Reminder">
+      </div>
+    </div>
+    <div class="row">
+      <div class="field full">
+        <label class="lbl">Message</label>
+        <textarea id="replyMessage" style="min-height:100px;" placeholder="Type your message here..."></textarea>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:4px;">
+      <button onclick="saveReply()" style="background:var(--tan);color:#fff;border:none;border-radius:22px;padding:11px 28px;font-family:'Jost',sans-serif;font-size:14px;font-weight:500;cursor:pointer;">💾 Save</button>
+      <button onclick="cancelReply()" style="background:var(--card);border:1.5px solid var(--border);border-radius:22px;padding:11px 22px;font-family:'Jost',sans-serif;font-size:14px;font-weight:500;color:var(--mid);cursor:pointer;">Cancel</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- SAVED ORDERS DRAWER -->
+<div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawerOnBg(event)">
+  <div class="drawer">
+    <div class="drawer-handle"></div>
+    <div class="drawer-head">
+      <div class="drawer-title">My Saved Orders</div>
+      <button class="drawer-close" onclick="closeDrawer()">✕</button>
+    </div>
+    <div class="order-list" id="orderList"></div>
+  </div>
+</div>
+
+<!-- CONFIRMATION MODAL -->
+<div class="modal-overlay" id="confModal">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-title">Send Confirmation</div>
+      <button class="modal-close" onclick="closeConf()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="conf-preview" id="confPreview"></div>
+      <div class="conf-actions">
+        <button class="conf-btn conf-wa"    onclick="sendConf('whatsapp')"><span class="cb-icon">💬</span> Send via WhatsApp</button>
+        <button class="conf-btn conf-email" onclick="sendConf('email')"><span class="cb-icon">✉️</span> Send via Email</button>
+        <button class="conf-btn conf-sms"   onclick="sendConf('sms')"><span class="cb-icon">📱</span> Send via Text Message</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CLIENT HISTORY MODAL -->
+<div class="modal-overlay" id="clientModal">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-title" id="clientModalTitle">Client History</div>
+      <button class="modal-close" onclick="document.getElementById('clientModal').classList.remove('open')">✕</button>
+    </div>
+    <div class="modal-body" id="clientModalBody"></div>
+  </div>
+</div>
+</body>
+</html>
