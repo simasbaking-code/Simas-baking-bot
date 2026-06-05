@@ -757,7 +757,7 @@ function sendConf(method){
     window.open('https://wa.me/' + waNum + '?text=' + encoded, '_blank');
   } else if(method==='email'){
     const gmailUrl = 'https://mail.google.com/mail/?view=cm&fs=1&to=' + encodeURIComponent(document.getElementById('phone').value||'') + '&su=' + encodeURIComponent('Your Order Confirmation - Simas Baking') + '&body=' + encoded;
-    window.open(gmailUrl, '_blank');
+    window.open('mailto:' + emailTo + '?subject=' + subject + '&body=' + encoded, '_blank');
   } else if(method==='sms'){
     window.open('sms:' + (phone||'') + '?body=' + encoded, '_blank');
   }
