@@ -613,7 +613,7 @@ function checkUpcomingReminders(){
   if(!banner||!body)return;
   const map=window._ordersCache||{},today=new Date();today.setHours(0,0,0,0);
   const items=[];
-  Object.keys(map).forEach(k=>{try{const o=map[k];if(!o.date||o.status==='cancelled')return;const ev=new Date(o.date+'T12:00:00');const diff=Math.round((ev-today)/(864e5));if(diff>=0&&diff<=3)items.push({key:k,name:o.name||'Unnamed',date:o.date,days:diff});}catch(e){}});
+  Object.keys(map).forEach(k=>{try{const o=map[k];if(!o.date||o.status==='cancelled')return;const ev=new Date(o.date+'T00:00:00');const diff=Math.round((ev-today)/(864e5));if(diff>=0&&diff<=3)items.push({key:k,name:o.name||'Unnamed',date:o.date,days:diff});}catch(e){}});
   if(!items.length){banner.style.display='none';return;}
   items.sort((a,b)=>a.days-b.days);
   banner.style.display='block';
