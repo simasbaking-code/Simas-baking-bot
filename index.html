@@ -440,21 +440,21 @@ textarea{resize:vertical;min-height:74px;}
       <table class="dessert-table">
         <thead><tr><th>Item</th><th>Price/dz</th><th>Qty(dz)</th></tr></thead>
         <tbody>
-          <tr><td>Cupcakes</td><td class="price-tag">$84</td><td><input type="text" class="qty-inp" placeholder="0"></td></tr>
-          <tr><td>Classic Cake Pops — plain</td><td class="price-tag">$78</td><td><input type="text" class="qty-inp" placeholder="0"></td></tr>
-          <tr><td>Classic Cake Pops — decorated</td><td class="price-tag">$96–108</td><td><input type="text" class="qty-inp" placeholder="0"></td></tr>
-          <tr><td>Disc Pops — plain</td><td class="price-tag">$72</td><td><input type="text" class="qty-inp" placeholder="0"></td></tr>
-          <tr><td>Disc Pops — detailed</td><td class="price-tag">$84–96</td><td><input type="text" class="qty-inp" placeholder="0"></td></tr>
-          <tr><td>Cakesicles</td><td class="price-tag">$84</td><td><input type="text" class="qty-inp" placeholder="0"></td></tr>
-          <tr><td>Choc. Covered Oreos</td><td class="price-tag">$78</td><td><input type="text" class="qty-inp" placeholder="0"></td></tr>
-          <tr><td>Choc. Covered Rice Krispies</td><td class="price-tag">$78</td><td><input type="text" class="qty-inp" placeholder="0"></td></tr>
-          <tr><td>Choc. Covered Pretzels</td><td class="price-tag">$65</td><td><input type="text" class="qty-inp" placeholder="0"></td></tr>
-          <tr><td>Choc. Covered Strawberries</td><td class="price-tag">$78</td><td><input type="text" class="qty-inp" placeholder="0"></td></tr>
-          <tr><td>Mini Shooters</td><td class="price-tag">$84</td><td><input type="text" class="qty-inp" placeholder="0"></td></tr>
-          <tr><td>Cream Brûlée</td><td class="price-tag">$96</td><td><input type="text" class="qty-inp" placeholder="0"></td></tr>
-          <tr><td>Mini Baked Donuts</td><td class="price-tag">$60</td><td><input type="text" class="qty-inp" placeholder="0"></td></tr>
-          <tr><td>Cake Cones</td><td class="price-tag">$90</td><td><input type="text" class="qty-inp" placeholder="0"></td></tr>
-          <tr><td>Mini Tart Cake</td><td class="price-tag">$120</td><td><input type="text" class="qty-inp" placeholder="0"></td></tr>
+          <tr><td>Cupcakes</td><td class="price-tag">$84</td><td><input type="text" class="qty-inp" id="dq_cupcakes" placeholder="0"></td></tr>
+          <tr><td>Classic Cake Pops — plain</td><td class="price-tag">$78</td><td><input type="text" class="qty-inp" id="dq_cakepops_plain" placeholder="0"></td></tr>
+          <tr><td>Classic Cake Pops — decorated</td><td class="price-tag">$96–108</td><td><input type="text" class="qty-inp" id="dq_cakepops_dec" placeholder="0"></td></tr>
+          <tr><td>Disc Pops — plain</td><td class="price-tag">$72</td><td><input type="text" class="qty-inp" id="dq_discpops_plain" placeholder="0"></td></tr>
+          <tr><td>Disc Pops — detailed</td><td class="price-tag">$84–96</td><td><input type="text" class="qty-inp" id="dq_discpops_det" placeholder="0"></td></tr>
+          <tr><td>Cakesicles</td><td class="price-tag">$84</td><td><input type="text" class="qty-inp" id="dq_cakesicles" placeholder="0"></td></tr>
+          <tr><td>Choc. Covered Oreos</td><td class="price-tag">$78</td><td><input type="text" class="qty-inp" id="dq_oreos" placeholder="0"></td></tr>
+          <tr><td>Choc. Covered Rice Krispies</td><td class="price-tag">$78</td><td><input type="text" class="qty-inp" id="dq_ricekrispies" placeholder="0"></td></tr>
+          <tr><td>Choc. Covered Pretzels</td><td class="price-tag">$65</td><td><input type="text" class="qty-inp" id="dq_pretzels" placeholder="0"></td></tr>
+          <tr><td>Choc. Covered Strawberries</td><td class="price-tag">$78</td><td><input type="text" class="qty-inp" id="dq_strawberries" placeholder="0"></td></tr>
+          <tr><td>Mini Shooters</td><td class="price-tag">$84</td><td><input type="text" class="qty-inp" id="dq_shooters" placeholder="0"></td></tr>
+          <tr><td>Cream Brûlée</td><td class="price-tag">$96</td><td><input type="text" class="qty-inp" id="dq_brulee" placeholder="0"></td></tr>
+          <tr><td>Mini Baked Donuts</td><td class="price-tag">$60</td><td><input type="text" class="qty-inp" id="dq_donuts" placeholder="0"></td></tr>
+          <tr><td>Cake Cones</td><td class="price-tag">$90</td><td><input type="text" class="qty-inp" id="dq_cakecones" placeholder="0"></td></tr>
+          <tr><td>Mini Tart Cake</td><td class="price-tag">$120</td><td><input type="text" class="qty-inp" id="dq_minitart" placeholder="0"></td></tr>
         </tbody>
       </table>
       <div class="row" style="margin-top:13px;"><div class="field full"><label class="lbl">Dessert Flavor / Notes</label><input type="text" id="dessertFlavor" placeholder="e.g. Mini shooters: Ferrero Rocher & Biscoff"></div></div>
@@ -690,7 +690,7 @@ async function saveOrder(){
       filling:[...document.querySelectorAll('input[name="filling"]:checked')].map(i=>i.value),
       chocBrand:[...document.querySelectorAll('input[name="chocbrand"]:checked')].map(i=>i.value),
       cakeMsg:document.getElementById('cakeMsg').value,colors:document.getElementById('colors').value,design:document.getElementById('design').value,
-      dessertFlavor:document.getElementById('dessertFlavor').value,
+      dessertFlavor:document.getElementById('dessertFlavor').value,'dq_cupcakes':document.getElementById('dq_cupcakes').value,'dq_cakepops_plain':document.getElementById('dq_cakepops_plain').value,'dq_cakepops_dec':document.getElementById('dq_cakepops_dec').value,'dq_discpops_plain':document.getElementById('dq_discpops_plain').value,'dq_discpops_det':document.getElementById('dq_discpops_det').value,'dq_cakesicles':document.getElementById('dq_cakesicles').value,'dq_oreos':document.getElementById('dq_oreos').value,'dq_ricekrispies':document.getElementById('dq_ricekrispies').value,'dq_pretzels':document.getElementById('dq_pretzels').value,'dq_strawberries':document.getElementById('dq_strawberries').value,'dq_shooters':document.getElementById('dq_shooters').value,'dq_brulee':document.getElementById('dq_brulee').value,'dq_donuts':document.getElementById('dq_donuts').value,'dq_cakecones':document.getElementById('dq_cakecones').value,'dq_minitart':document.getElementById('dq_minitart').value,
       addons:[...document.querySelectorAll('input[name="addon"]:checked')].map(i=>i.value),
       cakeaddons:[...document.querySelectorAll('input[name="cakeaddon"]:checked')].map(i=>i.value),
       cakeaddonNotes:document.getElementById('cakeaddonNotes').value,
@@ -737,7 +737,7 @@ function buildConfMessage(){
   const layers=document.querySelector('input[name="layers"]:checked')?.value||'';
   const lines=['🎂 Simas Baking - Order Confirmation','━━━━━━━━━━━━━━━━━━━━━━━━'];
   const fmtDate=date?new Date(date+'T12:00:00').toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}):date;
-  if(name)lines.push('👤 Name: '+name);if(date)lines.push('📅 Event Date: '+fmtDate);if(time)lines.push('🕐 Pickup Time: '+time);if(occasion)lines.push('🎉 Occasion: '+occasion);
+  if(name)lines.push('👤 Name: '+name);if(date)lines.push('📅 Event Date: '+fmtDate);if(time)lines.push('🕐 Pickup Time: '+time);if(occasion)lines.push('🎉 Occasion: '+occasion);const dessertLines=[];[['dq_cupcakes','Cupcakes'],['dq_cakepops_plain','Classic Cake Pops (plain)'],['dq_cakepops_dec','Classic Cake Pops (decorated)'],['dq_discpops_plain','Disc Pops (plain)'],['dq_discpops_det','Disc Pops (detailed)'],['dq_cakesicles','Cakesicles'],['dq_oreos','Choc. Covered Oreos'],['dq_ricekrispies','Choc. Covered Rice Krispies'],['dq_pretzels','Choc. Covered Pretzels'],['dq_strawberries','Choc. Covered Strawberries'],['dq_shooters','Mini Shooters'],['dq_brulee','Cream Brûlée'],['dq_donuts','Mini Baked Donuts'],['dq_cakecones','Cake Cones'],['dq_minitart','Mini Tart Cake']].forEach(([id,nm])=>{const el=document.getElementById(id);const v=el?el.value.trim():'';if(v&&v!=='0')dessertLines.push('   • '+nm+': '+v);});if(dessertLines.length){lines.push('');lines.push('🍭 Desserts');lines.push('━━━━━━━━━━━━━━━━━━━━━━━━');dessertLines.forEach(l=>lines.push(l));}const dessertFlavorVal=document.getElementById('dessertFlavor').value;if(dessertFlavorVal)lines.push('📝 Flavor/Notes: '+dessertFlavorVal);
   if(isRush)lines.push('⚡ RUSH ORDER — $50 Rush Fee Applied');
   lines.push('','🍰 Order Details','━━━━━━━━━━━━━━━━━━━━━━━━');
   if(size)lines.push('📐 Size: '+size+(layers?' · '+layers+' layers':'')+(sizeNotes?' ('+sizeNotes+')':''));
@@ -826,7 +826,7 @@ async function editOrder(key){
   try{
     const o=await getOrder(key);if(!o){toast('Order not found.');return;}
     switchTab('form');document.getElementById('orderForm').dataset.editKey=key;
-    document.getElementById('name').value=o.name||'';document.getElementById('phone').value=o.phone||'';document.getElementById('edate').value=o.date||'';document.getElementById('ptime').value=o.time||'';document.getElementById('occasion').value=o.occasion||'';document.getElementById('sizenotes').value=o.sizeNotes||'';document.getElementById('servings').value=o.servings||'';document.getElementById('flavorOther').value=o.flavorOther||'';document.getElementById('cakeMsg').value=o.cakeMsg||'';document.getElementById('colors').value=o.colors||'';document.getElementById('design').value=o.design||'';document.getElementById('dessertFlavor').value=o.dessertFlavor||'';document.getElementById('pTotal').value=o.total||'';document.getElementById('zelleNote').value=o.zelleNote||'';document.getElementById('cakeaddonNotes').value=o.cakeaddonNotes||'';document.getElementById('notes').value=o.notes||'';syncBalance();
+    document.getElementById('name').value=o.name||'';document.getElementById('phone').value=o.phone||'';document.getElementById('edate').value=o.date||'';document.getElementById('ptime').value=o.time||'';document.getElementById('occasion').value=o.occasion||'';document.getElementById('sizenotes').value=o.sizeNotes||'';document.getElementById('servings').value=o.servings||'';document.getElementById('flavorOther').value=o.flavorOther||'';document.getElementById('cakeMsg').value=o.cakeMsg||'';document.getElementById('colors').value=o.colors||'';document.getElementById('design').value=o.design||'';document.getElementById('dessertFlavor').value=o.dessertFlavor||'';document.getElementById('dq_cupcakes').value=o['dq_cupcakes']||'';document.getElementById('dq_cakepops_plain').value=o['dq_cakepops_plain']||'';document.getElementById('dq_cakepops_dec').value=o['dq_cakepops_dec']||'';document.getElementById('dq_discpops_plain').value=o['dq_discpops_plain']||'';document.getElementById('dq_discpops_det').value=o['dq_discpops_det']||'';document.getElementById('dq_cakesicles').value=o['dq_cakesicles']||'';document.getElementById('dq_oreos').value=o['dq_oreos']||'';document.getElementById('dq_ricekrispies').value=o['dq_ricekrispies']||'';document.getElementById('dq_pretzels').value=o['dq_pretzels']||'';document.getElementById('dq_strawberries').value=o['dq_strawberries']||'';document.getElementById('dq_shooters').value=o['dq_shooters']||'';document.getElementById('dq_brulee').value=o['dq_brulee']||'';document.getElementById('dq_donuts').value=o['dq_donuts']||'';document.getElementById('dq_cakecones').value=o['dq_cakecones']||'';document.getElementById('dq_minitart').value=o['dq_minitart']||'';document.getElementById('pTotal').value=o.total||'';document.getElementById('zelleNote').value=o.zelleNote||'';document.getElementById('cakeaddonNotes').value=o.cakeaddonNotes||'';document.getElementById('notes').value=o.notes||'';syncBalance();
     isRush=o.isRush||false;document.getElementById('rushToggle').classList.toggle('active',isRush);const fl=document.getElementById('rushFeeLine');if(fl)fl.classList.toggle('show',isRush);
     if(o.orderType){const r=document.querySelector(`input[name="otype"][value="${o.orderType}"]`);if(r){r.checked=true;toggleSections();}}
     if(o.status)setStatus(o.status);
