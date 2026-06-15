@@ -626,7 +626,7 @@ function checkUpcomingReminders(){
 
 async function getAllOrders(){if(window._ordersCache)return window._ordersCache;if(window._fbGetDocs){const s=await window._fbGetDocs();const o={};s.forEach(d=>{o[d.id]=d.data();});window._ordersCache=o;return o;}return{};}
 async function getOrder(id){if(window._ordersCache&&window._ordersCache[id])return window._ordersCache[id];if(window._fbGetDoc){const d=await window._fbGetDoc(id);return d.exists()?d.data():null;}return null;}
-async function saveOrderToCloud(id,data){if(window._fbSetDoc){await window._fbSetDoc(id,data);return;}localStorage.setItem(id,JSON.stringify(data));}
+async function saveOrderToCloud(id,data){if(window._fbSetDoc){await window._fbSetDoc(id,data);console.log('Firestore write OK:',id);return;}localStorage.setItem(id,JSON.stringify(data));}
 async function deleteOrderFromCloud(id){if(window._fbDeleteDoc){await window._fbDeleteDoc(id);return;}localStorage.removeItem(id);}
 
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2800);}
@@ -675,7 +675,7 @@ async function saveOrder(){
     const key=editKey||'sb_'+nm.replace(/\s+/g,'_')+'_'+Date.now();
     document.getElementById('orderForm').dataset.editKey='';
     const rawPhotos=[];for(let i=0;i<5;i++){const img=document.getElementById('pi'+i);rawPhotos.push((img&&img.src&&img.src.startsWith('data:'))?img.src:'');}
-    const photos=await Promise.all(rawPhotos.map(s=>compressPhoto(s,600,0.6)));
+    const photos=await Promise.all(rawPhotos.map(s=>compressPhoto(s,400,0.5)));
     const data={
       name:nm,phone:document.getElementById('phone').value,date:document.getElementById('edate').value,time:document.getElementById('ptime').value,
       occasion:document.getElementById('occasion').value,orderType:document.querySelector('input[name="otype"]:checked')?.value,
@@ -697,11 +697,13 @@ async function saveOrder(){
       total:document.getElementById('pTotal').value,zelleNote:document.getElementById('zelleNote').value,
       notes:document.getElementById('notes').value,photos:photos,savedAt:new Date().toISOString()
     };
+    const dataStr=JSON.stringify(data);
+    if(dataStr.length>900000){data.photos=data.photos.map(()=>'');toast('⚠️ Photos too large — saving without photos');}
     await saveOrderToCloud(key,data);
     if(window._ordersCache)window._ordersCache[key]=data;
     toast('✅ Order saved!');
     setTimeout(()=>switchTab('dashboard'),800);
-  }catch(err){console.error(err);toast('⚠️ Save failed — try again');}
+  }catch(err){console.error(err);toast('⚠️ Save failed: '+(err&&err.message?err.message.substring(0,60):String(err).substring(0,60)));}
 }
 
 function newOrder(){
