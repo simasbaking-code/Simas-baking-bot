@@ -736,7 +736,8 @@ function buildConfMessage(){
   const addonNotes=document.getElementById('cakeaddonNotes').value||'',total=document.getElementById('pTotal').value||'';
   const layers=document.querySelector('input[name="layers"]:checked')?.value||'';
   const lines=['🎂 Simas Baking - Order Confirmation','━━━━━━━━━━━━━━━━━━━━━━━━'];
-  if(name)lines.push('👤 Name: '+name);if(date)lines.push('📅 Event Date: '+date);if(time)lines.push('🕐 Pickup Time: '+time);if(occasion)lines.push('🎉 Occasion: '+occasion);
+  const fmtDate=date?new Date(date+'T12:00:00').toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}):date;
+  if(name)lines.push('👤 Name: '+name);if(date)lines.push('📅 Event Date: '+fmtDate);if(time)lines.push('🕐 Pickup Time: '+time);if(occasion)lines.push('🎉 Occasion: '+occasion);
   if(isRush)lines.push('⚡ RUSH ORDER — $50 Rush Fee Applied');
   lines.push('','🍰 Order Details','━━━━━━━━━━━━━━━━━━━━━━━━');
   if(size)lines.push('📐 Size: '+size+(layers?' · '+layers+' layers':'')+(sizeNotes?' ('+sizeNotes+')':''));
@@ -795,7 +796,7 @@ async function renderOrders(){
     pBanner.style.display='block';
     const ut=unpaid.reduce((s,k)=>{try{return s+(parseFloat((ordersMap[k].total||'').replace(/[^0-9.]/g,''))||0);}catch(e){return s;}},0);
     document.getElementById('pendingPaymentsTotal').textContent='$'+ut.toFixed(2)+' outstanding';
-    document.getElementById('pendingPaymentsList').innerHTML=unpaid.map(k=>{try{const o=ordersMap[k];return`<div style="display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,.7);border:1px solid #e8c46a;border-radius:9px;padding:8px 11px;"><div><div style="font-size:13px;font-weight:600;color:var(--dark);">${o.name||'Unnamed'}</div><div style="font-size:11px;color:var(--amber);">${o.date||'No date'}${o.occasion?' · '+o.occasion:''}</div></div><div style="text-align:right;"><div style="font-size:13px;font-weight:700;color:var(--amber);">${o.total||''}</div><button onclick="editOrder('${k}')" style="font-size:10px;background:none;border:none;color:var(--mid2);cursor:pointer;text-decoration:underline;padding:0;">Mark paid →</button></div></div>`;}catch(e){return '';}}).join('');
+    document.getElementById('pendingPaymentsList').innerHTML=unpaid.map(k=>{try{const o=ordersMap[k];return`<div style="display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,.7);border:1px solid #e8c46a;border-radius:9px;padding:8px 11px;"><div><div style="font-size:13px;font-weight:600;color:var(--dark);">${o.name||'Unnamed'}</div><div style="font-size:11px;color:var(--amber);">${o.date?new Date(o.date+'T12:00:00').toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}):'No date'}${o.occasion?' · '+o.occasion:''}</div></div><div style="text-align:right;"><div style="font-size:13px;font-weight:700;color:var(--amber);">${o.total||''}</div><button onclick="editOrder('${k}')" style="font-size:10px;background:none;border:none;color:var(--mid2);cursor:pointer;text-decoration:underline;padding:0;">Mark paid →</button></div></div>`;}catch(e){return '';}}).join('');
   }else{pBanner.style.display='none';}
   document.getElementById('statTotal').textContent=keys.length;
   document.getElementById('statUpcoming').textContent=upcoming;
@@ -815,7 +816,7 @@ async function renderOrders(){
   if(!filtered.length){list.innerHTML='<div class="no-orders-msg">No orders match your search.</div>';return;}
   list.innerHTML=filtered.map(key=>{
     try{const o=ordersMap[key];const st=o.status||'';const bc=st==='confirmed'?'badge-confirmed':st==='pending'?'badge-pending':st==='cancelled'?'badge-cancelled':'badge-none';const bl=st?st.charAt(0).toUpperCase()+st.slice(1):'New';
-    const meta=[];if(o.date)meta.push('📅 '+o.date);if(o.occasion)meta.push(o.occasion);if(o.orderType)meta.push(o.orderType);
+    const meta=[];if(o.date)meta.push('📅 '+new Date(o.date+'T12:00:00').toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}));if(o.occasion)meta.push(o.occasion);if(o.orderType)meta.push(o.orderType);
     const saved=o.savedAt?new Date(o.savedAt).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'';
     return`<div class="order-item${o.isRush?' is-rush':''}"><div class="oi-top"><div class="oi-name">${o.name||'Unnamed Order'}</div><div class="oi-badges">${o.isRush?'<span class="oi-badge badge-rush">⚡ Rush</span>':''}<span class="oi-badge ${bc}">${bl}</span></div></div><div class="oi-meta">${meta.join(' · ')}</div>${o.total?'<div class="oi-total">'+o.total+(o.isRush?' <span style="font-size:11px;color:var(--rush);">(+$50 rush)</span>':'')+'</div>':''}<div class="oi-actions"><button class="oi-btn oi-view" onclick="editOrder('${key}')">✏️ Edit</button><button class="oi-btn oi-repeat" onclick="repeatOrder('${key}')">🔁 Repeat</button><button class="oi-btn oi-history" onclick="viewClientHistory('${(o.name||'').replace(/'/g,"\\'")}')">👤 History</button><button class="oi-btn oi-complete" onclick="markComplete('${key}')">✅ Done</button><button class="oi-btn oi-del" onclick="delOrder('${key}')">🗑</button></div><div style="font-size:10px;color:var(--mid2);margin-top:7px;">Saved ${saved}</div></div>`;}catch(e){return '';}
   }).join('');
