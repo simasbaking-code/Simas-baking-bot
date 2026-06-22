@@ -670,17 +670,17 @@ async function deleteOrderFromCloud(id){if(window._fbDeleteDoc){await window._fb
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2800);}
 
 function switchTab(tab){
-  ['form','dashboard','calendar','replies','settings'].forEach(t=>{const el=document.getElementById('tab-'+t);if(el)el.classList.toggle('active',t===tab);});
+  ['form','dashboard','calendar','replies','settings','pricing'].forEach(t=>{const el=document.getElementById('tab-'+t);if(el)el.classList.toggle('active',t===tab);});
   document.getElementById('formView').style.display=tab==='form'?'block':'none';
   document.getElementById('dashView').style.display=tab==='dashboard'?'block':'none';
   document.getElementById('calView').style.display=tab==='calendar'?'block':'none';
   document.getElementById('repliesView').style.display=tab==='replies'?'block':'none';
   document.getElementById('settingsView').style.display=tab==='settings'?'block':'none';
-  document.getElementById('mainFooter').style.display=tab==='form'?'flex':'none';
+  document.getElementById('pricingView').style.display=tab==='pricing'?'block':'none';   document.getElementById('mainFooter').style.display=tab==='form'?'flex':'none';
   if(tab==='dashboard'){renderOrders();checkUpcomingReminders();}
   if(tab==='calendar')renderCalendar();
   if(tab==='settings')loadSettings();
-  if(tab==='replies')renderReplies();
+  if(tab==='replies')renderReplies();   if(tab==='pricing'){calcCake();calcDessert();}
 }
 
 document.querySelectorAll('input[name="otype"]').forEach(r=>r.addEventListener('change',toggleSections));
