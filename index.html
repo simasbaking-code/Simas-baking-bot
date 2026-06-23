@@ -9,7 +9,7 @@
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getFirestore, collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
   const firebaseConfig = {
-    apiKey: "AIzaSyBJrnbpLLeoMqNTL3R6sO4wBO2grPPhJMg",
+    apiKey: "AIzaSyBJrnbpLLeoMqNTL3R6sO4wO2grPPhJMg",
     authDomain: "simasbaking-40191.firebaseapp.com",
     projectId: "simasbaking-40191",
     storageBucket: "simasbaking-40191.firebasestorage.app",
@@ -996,7 +996,7 @@ function closeDrawer(){document.getElementById('drawerOverlay').classList.remove
   Pistachio Dubai Crunch: '+pistEl.options[pistEl.selectedIndex].text:'';   const designEl=document.getElementById('pc-design');   const designLabel=designEl.options[designEl.selectedIndex].text;   const dietEl=document.getElementById('pc-dietary');   const dietLine=dietEl.value!=='0'?'
   Dietary: '+dietEl.options[dietEl.selectedIndex].text:'';   const rushLine=document.getElementById('pc-rush').checked?'
   Rush: +$50':'';   const delivery=parseFloat(document.getElementById('pc-delivery').value)||0;   const delivLine=delivery>0?'
-  Delivery: $'+delivery.toFixed(0):'';   const total=document.getElementById('pc-total').textContent;   const quoteHi! Here's your custom quote:
+  Delivery: $'+delivery.toFixed(0):'';   const total=document.getElementById('pc-total').textContent;   const quote=`Hi! Here's your custom quote:
 
   Size: ${sizeLabel}
   Tiers: ${tiersLabel}
@@ -1005,14 +1005,14 @@ function closeDrawer(){document.getElementById('drawerOverlay').classList.remove
 
   Total: ${total}
 
-Full payment is due to confirm your order. I accept Zelle and Venmo. 🎂;   const prev=document.getElementById('pc-quote-preview');   prev.textContent=quote;prev.style.display='block';   if(navigator.clipboard){navigator.clipboard.writeText(quote).then(()=>toast('📋 Cake quote copied!'));}   else{const ta=document.createElement('textarea');ta.value=quote;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);toast('📋 Cake quote copied!');} } function copyDessertQuote(){   const itemEl=document.getElementById('pd-item');   const itemLabel=itemEl.options[itemEl.selectedIndex].text;   const qty=document.getElementById('pd-qty').value;   const total=document.getElementById('pd-total').textContent;   const quoteHi! Here's your quote:
+Full payment is due to confirm your order. I accept Zelle and Venmo. 🎂`;   const prev=document.getElementById('pc-quote-preview');   prev.textContent=quote;prev.style.display='block';   if(navigator.clipboard){navigator.clipboard.writeText(quote).then(()=>toast('📋 Cake quote copied!'));}   else{const ta=document.createElement('textarea');ta.value=quote;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);toast('📋 Cake quote copied!');} } function copyDessertQuote(){   const itemEl=document.getElementById('pd-item');   const itemLabel=itemEl.options[itemEl.selectedIndex].text;   const qty=document.getElementById('pd-qty').value;   const total=document.getElementById('pd-total').textContent;   const quote=`Hi! Here's your quote:
 
   Item: ${itemLabel}
   Quantity: ${qty} dozen
 
   Total: ${total}
 
-Full payment is due to confirm your order. I accept Zelle and Venmo. 🍫;   const prev=document.getElementById('pd-quote-preview');   prev.textContent=quote;prev.style.display='block';   if(navigator.clipboard){navigator.clipboard.writeText(quote).then(()=>toast('📋 Dessert quote copied!'));}   else{const ta=document.createElement('textarea');ta.value=quote;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);toast('📋 Dessert quote copied!');} }
+Full payment is due to confirm your order. I accept Zelle and Venmo. 🍫`;   const prev=document.getElementById('pd-quote-preview');   prev.textContent=quote;prev.style.display='block';   if(navigator.clipboard){navigator.clipboard.writeText(quote).then(()=>toast('📋 Dessert quote copied!'));}   else{const ta=document.createElement('textarea');ta.value=quote;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);toast('📋 Dessert quote copied!');} }
 function closeDrawerOnBg(e){if(e.target===document.getElementById('drawerOverlay'))closeDrawer();}
 
 // ─── Google Calendar Integration ───────────────────────────────────────────
