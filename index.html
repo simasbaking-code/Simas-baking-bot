@@ -191,6 +191,7 @@ textarea{resize:vertical;min-height:74px;}
 .badge-pending{background:var(--amber-bg);color:var(--amber);}
 .badge-cancelled{background:var(--red-bg);color:#b03030;}
 .badge-none{background:var(--blush);color:var(--mid2);}
+.badge-completed{background:#e8eef8;color:#3a5a8c;}
 .badge-rush{background:var(--rush-bg);color:var(--rush);border:1px solid var(--rush-border);}
 .oi-meta{font-size:12px;color:var(--mid2)line-height:1.7;}
 .oi-total{font-size:14px;font-weight:700;color:var(--tan);margin-top:4px;}
@@ -293,6 +294,7 @@ textarea{resize:vertical;min-height:74px;}
     <div class="ftab" onclick="filterOrders('confirmed',this)">✅ Confirmed</div>
     <div class="ftab" onclick="filterOrders('pending',this)">⏳ Pending</div>
     <div class="ftab" onclick="filterOrders('cancelled',this)">❌ Cancelled</div>
+    <div class="ftab" onclick="filterOrders('completed',this)">✅ Completed</div>
   </div>
   <div class="search-wrap"><span class="search-icon">🔍</span><input type="text" id="orderSearch" placeholder="Search by client name…" oninput="renderOrders()"></div>
   <div class="orders-list" id="ordersList"></div>
@@ -651,7 +653,7 @@ function checkUpcomingReminders(){
   if(!banner||!body)return;
   const map=window._ordersCache||{},today=new Date();today.setHours(0,0,0,0);
   const items=[];
-  Object.keys(map).forEach(k=>{try{const o=map[k];if(!o.date||o.status==='cancelled')return;const ev=new Date(o.date+'T00:00:00');const diff=Math.round((ev-today)/(864e5));if(diff>=0&&diff<=3)items.push({key:k,name:o.name||'Unnamed',date:o.date,days:diff});}catch(e){}});
+  Object.keys(map).forEach(k=>{try{const o=map[k];if(!o.date||o.status==='cancelled'||o.status==='completed')return;const ev=new Date(o.date+'T00:00:00');const diff=Math.round((ev-today)/(864e5));if(diff>=0&&diff<=3)items.push({key:k,name:o.name||'Unnamed',date:o.date,days:diff});}catch(e){}});
   if(!items.length){banner.style.display='none';return;}
   items.sort((a,b)=>a.days-b.days);
   banner.style.display='block';
@@ -856,7 +858,7 @@ async function renderOrders(){
   const filtered=keys.filter(k=>{try{const o=ordersMap[k];return(!search||(o.name||'').toLowerCase().includes(search))&&(currentFilter==='all'||(o.status||'')===currentFilter);}catch(e){return false;}});
   if(!filtered.length){list.innerHTML='<div class="no-orders-msg">No orders match your search.</div>';return;}
   list.innerHTML=filtered.map(key=>{
-    try{const o=ordersMap[key];const st=o.status||'';const bc=st==='confirmed'?'badge-confirmed':st==='pending'?'badge-pending':st==='cancelled'?'badge-cancelled':'badge-none';const bl=st?st.charAt(0).toUpperCase()+st.slice(1):'New';
+    try{const o=ordersMap[key];const st=o.status||'';const bc=st==='confirmed'?'badge-confirmed':st==='pending'?'badge-pending':st==='cancelled'?'badge-cancelled':st==='completed'?'badge-completed':'badge-none';const bl=st?st.charAt(0).toUpperCase()+st.slice(1):'New';
     const meta=[];if(o.date)meta.push('📅 '+new Date(o.date+'T12:00:00').toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}));if(o.occasion)meta.push(o.occasion);if(o.orderType)meta.push(o.orderType);
     const saved=o.savedAt?new Date(o.savedAt).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'';
     return`<div class="order-item${o.isRush?' is-rush':''}"><div class="oi-top"><div class="oi-name">${o.name||'Unnamed Order'}</div><div class="oi-badges">${o.isRush?'<span class="oi-badge badge-rush">⚡ Rush</span>':''}<span class="oi-badge ${bc}">${bl}</span></div></div><div class="oi-meta">${meta.join(' · ')}</div>${o.total?'<div class="oi-total">'+o.total+(o.isRush?' <span style="font-size:11px;color:var(--rush);">(+$50 rush)</span>':'')+'</div>':''}<div class="oi-actions"><button class="oi-btn oi-view" onclick="editOrder('${key}')">✏️ Edit</button><button class="oi-btn oi-repeat" onclick="repeatOrder('${key}')">🔁 Repeat</button><button class="oi-btn oi-history" onclick="viewClientHistory('${(o.name||'').replace(/'/g,"\\'")}')">👤 History</button><button class="oi-btn oi-complete" onclick="markComplete('${key}')">✅ Done</button><button class="oi-btn oi-del" onclick="delOrder('${key}')">🗑</button></div><div style="font-size:10px;color:var(--mid2);margin-top:7px;">Saved ${saved}</div></div>`;}catch(e){return '';}
@@ -900,7 +902,7 @@ async function repeatOrder(key){
   }catch(e){toast('Could not repeat order.');}
 }
 
-async function markComplete(key){try{const o=await getOrder(key);if(!o)return;o.status='confirmed';await saveOrderToCloud(key,o);if(window._ordersCache)window._ordersCache[key]=o;renderOrders();toast('✅ Marked as confirmed!');}catch(e){toast('Error updating order.');}}
+async function markComplete(key){try{const o=await getOrder(key);if(!o)return;o.status='completed';await saveOrderToCloud(key,o);if(window._ordersCache)window._ordersCache[key]=o;renderOrders();toast('✅ Order marked as complete!');}catch(e){toast('Error updating order.');}}
 async function delOrder(key){if(!confirm('Delete this order permanently?'))return;await deleteOrderFromCloud(key);if(window._ordersCache)delete window._ordersCache[key];renderOrders();toast('🗑 Order deleted');}
 
 async function viewClientHistory(name){
@@ -912,7 +914,7 @@ async function viewClientHistory(name){
   const totalSpent=orders.reduce((s,k)=>{try{return s+(parseFloat((map[k].total||'').replace(/[^0-9.]/g,''))||0);}catch(e){return s;}},0);
   const mNames=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   let html=`<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;"><div style="flex:1;min-width:80px;background:var(--blush);border-radius:11px;padding:13px;text-align:center;"><div style="font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:600;color:var(--tan);">${orders.length}</div><div style="font-size:10px;color:var(--mid2);font-weight:600;text-transform:uppercase;letter-spacing:.5px;">Orders</div></div><div style="flex:1;min-width:80px;background:var(--blush);border-radius:11px;padding:13px;text-align:center;"><div style="font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:600;color:var(--tan);">$${totalSpent.toFixed(0)}</div><div style="font-size:10px;color:var(--mid2);font-weight:600;text-transform:uppercase;letter-spacing:.5px;">Spent</div></div><div style="flex:1;min-width:80px;background:var(--blush);border-radius:11px;padding:13px;text-align:center;"><div style="font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:600;color:var(--tan);">$${orders.length?Math.round(totalSpent/orders.length):0}</div><div style="font-size:10px;color:var(--mid2);font-weight:600;text-transform:uppercase;letter-spacing:.5px;">Avg</div></div></div><div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--mid2);margin-bottom:9px;">Order History</div><div style="display:flex;flex-direction:column;gap:8px;">`;
-  orders.forEach(k=>{try{const o=map[k];const st=o.status||'new';const bc=st==='confirmed'?'badge-confirmed':st==='pending'?'badge-pending':st==='cancelled'?'badge-cancelled':'badge-none';const d=o.date?new Date(o.date+'T12:00:00'):null;const ds=d?mNames[d.getMonth()]+' '+d.getDate()+', '+d.getFullYear():'No date';
+  orders.forEach(k=>{try{const o=map[k];const st=o.status||'new';const bc=st==='confirmed'?'badge-confirmed':st==='pending'?'badge-pending':st==='cancelled'?'badge-cancelled':st==='completed'?'badge-completed':'badge-none';const d=o.date?new Date(o.date+'T12:00:00'):null;const ds=d?mNames[d.getMonth()]+' '+d.getDate()+', '+d.getFullYear():'No date';
   html+=`<div style="background:var(--blush2);border:1.5px solid var(--border2);border-radius:10px;padding:11px 13px;"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;"><div style="font-size:13px;font-weight:600;color:var(--dark);">${o.isRush?'⚡ ':''}📅 ${ds}</div><span class="oi-badge ${bc}">${st}</span></div><div style="font-size:11px;color:var(--mid2);line-height:1.7;">${(o.size||[]).join?o.size.join(', '):o.size||''}${o.occasion?' · '+o.occasion:''}</div>${o.total?'<div style="font-size:13px;font-weight:700;color:var(--tan);margin-top:4px;">'+o.total+'</div>':''}<div style="display:flex;gap:6px;margin-top:7px;"><button class="oi-btn oi-view" onclick="editOrder('${k}');document.getElementById('clientModal').classList.remove('open')">✏️ Edit</button><button class="oi-btn oi-repeat" onclick="repeatOrder('${k}');document.getElementById('clientModal').classList.remove('open')">🔁 Repeat</button></div></div>`;}catch(e){}});
   html+='</div>';
   document.getElementById('clientModalBody').innerHTML=html;document.getElementById('clientModal').classList.add('open');
@@ -946,7 +948,7 @@ function showCalDay(dateStr,orders){
   const detail=document.getElementById('calDayDetail');if(!orders.length){detail.style.display='none';return;}
   const d=new Date(dateStr+'T12:00:00');const label=d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
   let html=`<div class="day-detail-card"><div style="font-family:'Cormorant Garamond',serif;font-size:16px;font-style:italic;color:var(--tan);margin-bottom:11px;font-weight:600;">📅 ${label}</div>`;
-  orders.forEach(o=>{try{const ord=(window._ordersCache||{})[o.key]||{};const st=ord.status||'none';const bc=st==='confirmed'?'badge-confirmed':st==='pending'?'badge-pending':st==='cancelled'?'badge-cancelled':'badge-none';
+  orders.forEach(o=>{try{const ord=(window._ordersCache||{})[o.key]||{};const st=ord.status||'none';const bc=st==='confirmed'?'badge-confirmed':st==='pending'?'badge-pending':st==='cancelled'?'badge-cancelled':st==='completed'?'badge-completed':'badge-none';
   html+=`<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border2);"><div><div style="font-size:13px;font-weight:700;color:var(--dark);">${ord.isRush?'⚡ ':''}${ord.name||'Unnamed'}</div><div style="font-size:11px;color:var(--mid2);margin-top:2px;">${ord.occasion||''} ${(ord.size&&ord.size.join)?ord.size.join(', '):''}</div>${ord.total?'<div style="font-size:12px;font-weight:700;color:var(--tan);margin-top:2px;">'+ord.total+'</div>':''}</div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px;"><span class="oi-badge ${bc}">${st}</span><button class="oi-btn oi-view" onclick="editOrder('${o.key}')">✏️ Edit</button></div></div>`;}catch(e){}});
   html+='</div>';detail.innerHTML=html;detail.style.display='block';detail.scrollIntoView({behavior:'smooth'});
 }
