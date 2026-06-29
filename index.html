@@ -771,7 +771,13 @@ function printOrder(){
   const dt=document.getElementById('edate').value||'';
   const pt=document.getElementById('ptime').value||'';
   const occ=document.getElementById('occasion').value||'';
-  const sz=document.getElementById('sizenotes').value||'';
+  const sizeChecked=[...document.querySelectorAll('input[name="size"]:checked')].map(x=>x.value);
+  const shape=document.querySelector('.shp.sel')?.dataset.shape||'';
+  const sizenotes=document.getElementById('sizenotes').value||'';
+  const szParts=[...sizeChecked];
+  if(shape)szParts.push(shape);
+  if(sizenotes)szParts.push(sizenotes);
+  const sz=szParts.join(' · ');
   const sv=document.getElementById('servings').value||'';
   const flavorOther=document.getElementById('flavorOther').value||'';
   const msg=document.getElementById('cakeMsg').value||'';
