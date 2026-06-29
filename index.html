@@ -640,7 +640,7 @@ textarea{resize:vertical;min-height:74px;}
   <button class="btn btn-conf" onclick="openConf()">📨 Confirm</button>
   <button class="btn btn-sched" onclick="openBakingSchedule()">⏰ Schedule</button>
   <button class="btn btn-pdf" onclick="saveAsPDF()">📄 PDF</button>
-  <button class="btn btn-print" onclick="window.print()">🖨️ Print</button>
+  <button class="btn btn-print" onclick="printOrder()">🖨️ Print</button>
 </div>
 <div class="toast" id="toast"></div>
 <script>
@@ -763,7 +763,79 @@ function newOrder(){
   switchTab('form');window.scrollTo(0,0);
 }
 
-function saveAsPDF(){const nm=document.getElementById('name').value||'Order';const dt=document.getElementById('edate').value||'';const prev=document.title;document.title=nm+(dt?' - '+dt:'');window.print();setTimeout(()=>document.title=prev,1000);}
+function saveAsPDF(){printOrder();}
+function printOrder(){
+  const nm=document.getElementById('name').value||'';
+  const ph=document.getElementById('phone').value||'';
+  const dt=document.getElementById('edate').value||'';
+  const pt=document.getElementById('ptime').value||'';
+  const occ=document.getElementById('occasion').value||'';
+  const sz=document.getElementById('sizenotes').value||'';
+  const sv=document.getElementById('servings').value||'';
+  const flav=document.getElementById('flavorOther').value||'';
+  const msg=document.getElementById('cakeMsg').value||'';
+  const col=document.getElementById('colors').value||'';
+  const des=document.getElementById('design').value||'';
+  const addon=document.getElementById('cakeaddonNotes').value||'';
+  const tot=document.getElementById('pTotal').value||'';
+  const zn=document.getElementById('zelleNote').value||'';
+  const rush=isRush;
+  const stat=currentStatus||'';
+  // Get selected order type
+  const otEl=document.querySelector('input[name="otype"]:checked');
+  const ot=otEl?otEl.value:'Cake';
+  // Format date
+  let dtFmt='';if(dt){try{const[y,m,d]=dt.split('-');dtFmt=m+'/'+d+'/'+y;}catch(e){dtFmt=dt;}}
+  // Format time
+  let ptFmt='';if(pt){try{const[hh,mm]=pt.split(':');const h=parseInt(hh);ptFmt=(h%12||12)+':'+mm+(h>=12?'pm':'am');}catch(e){ptFmt=pt;}}
+  // Status badge color
+  const stColor=stat==='confirmed'?'#3a7d44':stat==='cancelled'?'#c0392b':stat==='completed'?'#6d5c9e':'#b07d3a';
+  const stLabel=stat?stat.charAt(0).toUpperCase()+stat.slice(1):'Pending';
+
+  // Build rows helper
+  function row(label,val){if(!val)return '';return '<tr><td style="font-weight:600;color:#888;padding:5px 10px 5px 0;vertical-align:top;white-space:nowrap;width:35%;">'+label+'</td><td style="padding:5px 0;color:#333;">'+val+'</td></tr>';}
+
+  const html='<!DOCTYPE html><html><head><meta charset="utf-8"><title>Order — '+(nm||'Client')+'</title><style>*{box-sizing:border-box;}body{font-family:-apple-system,BlinkMacSystemFont,\'Helvetica Neue\',sans-serif;font-size:13px;color:#333;margin:0;padding:20px;}h1{font-size:18px;margin:0 0 4px;color:#1a1a1a;}h2{font-size:13px;font-weight:700;color:#b07d3a;margin:16px 0 6px;border-bottom:1px solid #e8dcd5;padding-bottom:4px;}.badge{display:inline-block;padding:3px 10px;border-radius:20px;color:#fff;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;}.rush{background:#c0392b;color:#fff;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;}table{width:100%;border-collapse:collapse;}td{font-size:13px;}.footer{margin-top:20px;border-top:1px solid #e8dcd5;padding-top:10px;font-size:11px;color:#aaa;text-align:center;}@media print{body{padding:10px;}button{display:none!important;}}</style></head><body>'
+  +'<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:14px;">'
+  +'<div><h1>🎂 Simas Baking — Order</h1><div style="font-size:11px;color:#aaa;">Printed '+new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})+'</div></div>'
+  +'<div style="display:flex;gap:6px;align-items:center;"><span class="badge" style="background:'+stColor+'">'+stLabel+'</span>'+(rush?'<span class="rush">⚡ Rush</span>':'')+'</div>'
+  +'</div>'
+  +'<h2>Client</h2><table>'
+  +row('Name',nm)+row('Phone',ph)
+  +'</table>'
+  +'<h2>Order Details</h2><table>'
+  +row('Event Date',dtFmt+(ptFmt?' at '+ptFmt:''))
+  +row('Occasion',occ)
+  +row('Type',ot)
+  +row('Size / Tiers',sz)
+  +row('Servings',sv)
+  +'</table>'
+  +(ot!=='Desserts'?'<h2>Cake Details</h2><table>'+row('Flavor',flav)+row('Message',msg)+row('Colors',col)+row('Design',des)+row('Add-on Notes',addon)+'</table>':'')
+  +'<h2>Payment</h2><table>'
+  +row('Total',tot+(rush?' (incl. $50 rush fee)':''))
+  +row('Zelle Note',zn)
+  +'</table>'
+  +'<div class="footer">simasbaking.com</div>'
+  +'</body></html>';
+
+  try{
+    const blob=new Blob([html],{type:'text/html'});
+    const url=URL.createObjectURL(blob);
+    const w=window.open(url,'_blank');
+    if(!w){
+      // Fallback: if popup blocked, use location (rare)
+      const a=document.createElement('a');
+      a.href=url;a.target='_blank';a.click();
+    }
+    setTimeout(()=>URL.revokeObjectURL(url),60000);
+  }catch(e){
+    // Last resort fallback
+    const prev=document.title;
+    document.title=(nm||'Order')+(dtFmt?' - '+dtFmt:'');
+    window.print();
+    setTimeout(()=>document.title=prev,1000);
+  }
+}
 
 function buildConfMessage(){
   const name=document.getElementById('name').value||'',date=document.getElementById('edate').value||'',time=document.getElementById('ptime').value||'',occasion=document.getElementById('occasion').value||'';
